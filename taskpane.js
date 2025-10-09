@@ -101,26 +101,13 @@ async function downloadEmailAsEml() {
   }
 }
 
-async function initializeMsal() {
-  await msalInstance.initialize();
-}
-
 Office.onReady(async (info) => {
   if (info.host === Office.HostType.Outlook) {
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "block";
 
-    // Initialize MSAL first
-    try {
-      await initializeMsal();
-    } catch (initError) {
-      console.error("MSAL initialization failed:", initError);
-      document.getElementById("status").textContent = "Failed to initialize authentication.";
-      document.getElementById("status").style.color = "red";
-      return; // Don't attach handler if MSAL init fails
-    }
-
-    // Attach click handler
+    // Just attach the handler – no MSAL initialize() needed for browser
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
   }
 });
+
