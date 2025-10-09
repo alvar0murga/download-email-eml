@@ -4,7 +4,7 @@ import * as msal from "@azure/msal-browser";
 const msalConfig = {
   auth: {
     clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92", // Your app client ID
-    redirectUri: "https://localhost" // Your redirect URI registered in Azure
+    redirectUri: "https://alvar0murga.github.io/download-email-eml/" // Your redirect URI registered in Azure
   }
 };
 
