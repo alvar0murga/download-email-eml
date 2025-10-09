@@ -105,14 +105,22 @@ async function initializeMsal() {
   await msalInstance.initialize();
 }
 
-/* Office onReady */
-Office.onReady((info) => {
+Office.onReady(async (info) => {
   if (info.host === Office.HostType.Outlook) {
-    // Hide the sideload message, show the app
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "block";
 
-    // Attach click handler to the button
+    // Initialize MSAL first
+    try {
+      await initializeMsal();
+    } catch (initError) {
+      console.error("MSAL initialization failed:", initError);
+      document.getElementById("status").textContent = "Failed to initialize authentication.";
+      document.getElementById("status").style.color = "red";
+      return; // Don't attach handler if MSAL init fails
+    }
+
+    // Attach click handler
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
   }
 });
