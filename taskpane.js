@@ -101,6 +101,10 @@ async function downloadEmailAsEml() {
   }
 }
 
+async function initializeMsal() {
+  await msalInstance.initialize();
+}
+
 /* Office onReady */
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
