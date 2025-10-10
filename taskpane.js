@@ -3,8 +3,8 @@ import * as msal from "@azure/msal-browser";
 /* Azure AD MSAL config */
 const msalConfig = {
   auth: {
-    clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
-    redirectUri: "https://alvar0murga.github.io/download-email-eml/" // must match Azure App Reg
+    clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92", // Tu client ID
+    redirectUri: "https://localhost" // Tu URI de redirección registrada en Azure
   }
 };
 
@@ -34,13 +34,14 @@ async function getToken() {
 
   const tokenRequest = {
     scopes: ["Mail.Read"],
-    account
+    account: account
   };
 
   try {
     const response = await msalInstance.acquireTokenSilent(tokenRequest);
     return response.accessToken;
   } catch (error) {
+    // Interaction required (consent or MFA)
     if (error instanceof msal.InteractionRequiredAuthError) {
       const response = await msalInstance.acquireTokenPopup(tokenRequest);
       return response.accessToken;
@@ -60,13 +61,15 @@ async function downloadEmailAsEml() {
   try {
     const accessToken = await getToken();
 
+    // Get the itemId and encode it for Graph API
     const itemId = Office.context.mailbox.item.itemId;
     const graphItemId = encodeURIComponent(itemId);
 
+    // Call Microsoft Graph API to get the MIME content of the email
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "message/rfc822"
+        "Authorization": `Bearer ${accessToken}`,
+        "Accept": "message/rfc822"
       }
     });
 
@@ -76,9 +79,11 @@ async function downloadEmailAsEml() {
 
     const emlBlob = await response.blob();
 
+    // Clean subject for filename
     const subject = Office.context.mailbox.item.subject || "email";
     const filename = subject.replace(/[/\\?%*:|"<>]/g, '-') + ".eml";
 
+    // Create a temporary download link and click it
     const url = URL.createObjectURL(emlBlob);
     const a = document.createElement("a");
     a.href = url;
@@ -96,13 +101,13 @@ async function downloadEmailAsEml() {
   }
 }
 
-/* Office onReady */
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
+    // Hide the sideload message, show the app
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "block";
 
-    // Hook up the download button
+    // Attach click handler to the button
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
   }
 });
