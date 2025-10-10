@@ -11,8 +11,16 @@ const msalConfig = {
 // Crear la instancia de msal.PublicClientApplication
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-// Inicializar la instancia
-await msalInstance.initialize();
+/* Inicialización de MSAL */
+async function initializeMsal() {
+  try {
+    // Inicializar la instancia de MSAL
+    await msalInstance.initialize();
+    console.log("MSAL Initialized successfully");
+  } catch (error) {
+    console.error("Error initializing MSAL:", error);
+  }
+}
 
 /* Sign in user with popup */
 async function signIn() {
@@ -105,12 +113,23 @@ async function downloadEmailAsEml() {
   }
 }
 
-
+/* Initialize MSAL and then set up Office add-in */
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
-    // Hide the sideload message, show the app
-    document.getElementById("sideload-msg").style.display = "none";
-    document.getElementById("app-body").style.display = "block";
+    // Primero inicializamos MSAL
+    initializeMsal().then(() => {
+      // Hide the sideload message, show the app
+      document.getElementById("sideload-msg").style.display = "none";
+      document.getElementById("app-body").style.display = "block";
+
+      // Attach click handler to the button
+      document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
+    }).catch(error => {
+      console.error("MSAL Initialization failed:", error);
+    });
+  }
+});
+
 
     // Attach click handler to the button
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
