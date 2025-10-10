@@ -101,6 +101,11 @@ async function downloadEmailAsEml() {
   }
 }
 
+async function initializeMsal() {
+  // Inicialización de MSAL
+  await msalInstance.initialize();
+}
+
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
     // Hide the sideload message, show the app
