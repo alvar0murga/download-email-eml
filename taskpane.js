@@ -4,7 +4,7 @@ import * as msal from "@azure/msal-browser";
 const msalConfig = {
   auth: {
     clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
-    redirectUri: "https://alvar0murga.github.io/download-email-eml/" // or location.origin if dynamic
+    redirectUri: "https://alvar0murga.github.io/download-email-eml/" // must match Azure App Reg
   }
 };
 
@@ -34,7 +34,7 @@ async function getToken() {
 
   const tokenRequest = {
     scopes: ["Mail.Read"],
-    account: account
+    account
   };
 
   try {
@@ -65,8 +65,8 @@ async function downloadEmailAsEml() {
 
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
       headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "message/rfc822"
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "message/rfc822"
       }
     });
 
@@ -102,6 +102,7 @@ Office.onReady((info) => {
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "block";
 
+    // Hook up the download button
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
   }
 });
