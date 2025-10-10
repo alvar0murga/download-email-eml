@@ -1,6 +1,5 @@
 import * as msal from "@azure/msal-browser";
 
-await msalInstance.initialize();
 /* Azure AD MSAL config */
 const msalConfig = {
   auth: {
@@ -9,7 +8,11 @@ const msalConfig = {
   }
 };
 
+// Crear la instancia de msal.PublicClientApplication
 const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+// Inicializar la instancia
+await msalInstance.initialize();
 
 /* Sign in user with popup */
 async function signIn() {
@@ -113,4 +116,3 @@ Office.onReady((info) => {
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
   }
 });
-
