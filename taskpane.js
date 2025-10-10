@@ -1,5 +1,6 @@
 import * as msal from "@azure/msal-browser";
 
+await msalInstance.initialize();
 /* Azure AD MSAL config */
 const msalConfig = {
   auth: {
@@ -101,10 +102,6 @@ async function downloadEmailAsEml() {
   }
 }
 
-async function initializeMsal() {
-  // Inicialización de MSAL
-  await msalInstance.initialize();
-}
 
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
