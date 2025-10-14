@@ -30,7 +30,6 @@ async function initializeMsal() {
   }
 }
 
-// ...existing code...
 /* Sign in user with popup */
 async function signIn() {
   if (!msalInstance) {
@@ -140,16 +139,60 @@ async function downloadEmailAsEml() {
   }
 }
 
-/* Initialize Office add-in */
+/* Initialize Office add-in with debugging */
+console.log("Script loaded, waiting for Office...");
+
+// Add fallback initialization
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("DOM loaded");
+  
+  // If Office.onReady doesn't work, show the app anyway after a delay
+  setTimeout(() => {
+    if (document.getElementById("sideload-msg") && document.getElementById("sideload-msg").style.display !== "none") {
+      console.log("Office.onReady didn't trigger, showing app anyway");
+      document.getElementById("sideload-msg").style.display = "none";
+      document.getElementById("app-body").style.display = "block";
+      
+      // Try to attach click handler
+      const btn = document.getElementById("downloadBtn");
+      if (btn) {
+        btn.onclick = downloadEmailAsEml;
+      }
+    }
+  }, 3000);
+});
+
 Office.onReady((info) => {
+  console.log("Office.onReady triggered", info);
+  
   if (info.host === Office.HostType.Outlook) {
+    console.log("Host is Outlook, initializing...");
+    
     // Hide the sideload message, show the app
-    document.getElementById("sideload-msg").style.display = "none";
-    document.getElementById("app-body").style.display = "block";
+    const sideloadMsg = document.getElementById("sideload-msg");
+    const appBody = document.getElementById("app-body");
+    
+    if (sideloadMsg) {
+      sideloadMsg.style.display = "none";
+      console.log("Hid sideload message");
+    }
+    
+    if (appBody) {
+      appBody.style.display = "block";
+      console.log("Showed app body");
+    }
 
     // Attach click handler to the button
-    document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
+    const downloadBtn = document.getElementById("downloadBtn");
+    if (downloadBtn) {
+      downloadBtn.onclick = downloadEmailAsEml;
+      console.log("Attached click handler");
+    } else {
+      console.error("Download button not found");
+    }
     
     console.log("Office add-in ready", "Current location:", window.location.href);
+  } else {
+    console.log("Host is not Outlook:", info.host);
   }
 });
