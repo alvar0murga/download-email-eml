@@ -11,19 +11,32 @@ const msalConfig = {
 // Create msal.PublicClientApplication instance
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
+// Track initialization state
+let isInitialized = false;
+
 /* Start MSAL */
 async function initializeMsal() {
+  if (isInitialized) {
+    return; // Already initialized
+  }
+  
   try {
     // Start MSAL instance  
     await msalInstance.initialize();
+    isInitialized = true;
     console.log("MSAL Initialized successfully");
   } catch (error) {
     console.error("Error initializing MSAL:", error);
+    throw error;
   }
 }
 
 /* Sign in user with popup */
 async function signIn() {
+  if (!isInitialized) {
+    throw new Error("MSAL not initialized");
+  }
+  
   const loginRequest = {
     scopes: ["Mail.Read"]
   };
@@ -39,6 +52,10 @@ async function signIn() {
 
 /* Get access token silently or interactively */
 async function getToken() {
+  if (!isInitialized) {
+    throw new Error("MSAL not initialized");
+  }
+  
   let account = msalInstance.getAllAccounts()[0];
   if (!account) {
     account = await signIn();
@@ -71,6 +88,11 @@ async function downloadEmailAsEml() {
   statusDiv.textContent = "Signing in and fetching email...";
 
   try {
+    // Ensure MSAL is initialized before proceeding
+    if (!isInitialized) {
+      await initializeMsal();
+    }
+    
     const accessToken = await getToken();
 
     // Get the itemId and encode it for Graph API
@@ -114,18 +136,25 @@ async function downloadEmailAsEml() {
 }
 
 /* Initialize MSAL and then set up Office add-in */
-Office.onReady((info) => {
+Office.onReady(async (info) => {
   if (info.host === Office.HostType.Outlook) {
-    // First initialize MSAL
-    initializeMsal().then(() => {
+    try {
+      // Initialize MSAL first
+      await initializeMsal();
+      
       // Hide the sideload message, show the app
       document.getElementById("sideload-msg").style.display = "none";
       document.getElementById("app-body").style.display = "block";
 
       // Attach click handler to the button AFTER MSAL is initialized
       document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
-    }).catch(error => {
+    } catch (error) {
       console.error("MSAL Initialization failed:", error);
-    });
+      const statusDiv = document.getElementById("status");
+      if (statusDiv) {
+        statusDiv.style.color = "red";
+        statusDiv.textContent = "Failed to initialize authentication";
+      }
+    }
   }
 });
