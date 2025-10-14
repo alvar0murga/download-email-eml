@@ -3,18 +3,18 @@ import * as msal from "@azure/msal-browser";
 /* Azure AD MSAL config */
 const msalConfig = {
   auth: {
-    clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92", // Tu client ID
-    redirectUri: "https://localhost" // Tu URI de redirección registrada en Azure
+    clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
+    redirectUri: "https://localhost"
   }
 };
 
-// Crear la instancia de msal.PublicClientApplication
+// Create msal.PublicClientApplication instance
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-/* Inicialización de MSAL */
+/* Start MSAL */
 async function initializeMsal() {
   try {
-    // Inicializar la instancia de MSAL
+    // Start MSAL instance  
     await msalInstance.initialize();
     console.log("MSAL Initialized successfully");
   } catch (error) {
@@ -116,22 +116,16 @@ async function downloadEmailAsEml() {
 /* Initialize MSAL and then set up Office add-in */
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
-    // Primero inicializamos MSAL
+    // First initialize MSAL
     initializeMsal().then(() => {
       // Hide the sideload message, show the app
       document.getElementById("sideload-msg").style.display = "none";
       document.getElementById("app-body").style.display = "block";
 
-      // Attach click handler to the button
+      // Attach click handler to the button AFTER MSAL is initialized
       document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
     }).catch(error => {
       console.error("MSAL Initialization failed:", error);
     });
-  }
-});
-
-
-    // Attach click handler to the button
-    document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
   }
 });
