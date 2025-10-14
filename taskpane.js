@@ -51,10 +51,12 @@ async function signIn() {
 
 /* Get access token silently or interactively */
 async function getToken() {
+  // Ensure MSAL is initialized first
   if (!msalInstance) {
     await initializeMsal();
   }
   
+  // Now safely get accounts
   let account = msalInstance.getAllAccounts()[0];
   if (!account) {
     account = await signIn();
