@@ -4,36 +4,35 @@ import * as msal from "@azure/msal-browser";
 const msalConfig = {
   auth: {
     clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
-    redirectUri: "https://localhost"
+    redirectUri: window.location.origin
   }
 };
 
-// Create msal.PublicClientApplication instance
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+// Don't create instance immediately - wait for initialization
+let msalInstance = null;
 
-// Track initialization state
-let isInitialized = false;
-
-/* Start MSAL */
+/* Start MSAL - Create and initialize instance */
 async function initializeMsal() {
-  if (isInitialized) {
-    return; // Already initialized
+  if (msalInstance) {
+    return msalInstance; // Already initialized
   }
   
   try {
-    // Start MSAL instance  
+    // Create and initialize MSAL instance
+    msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
-    isInitialized = true;
     console.log("MSAL Initialized successfully");
+    return msalInstance;
   } catch (error) {
     console.error("Error initializing MSAL:", error);
+    msalInstance = null;
     throw error;
   }
 }
 
 /* Sign in user with popup */
 async function signIn() {
-  if (!isInitialized) {
+  if (!msalInstance) {
     throw new Error("MSAL not initialized");
   }
   
@@ -52,8 +51,8 @@ async function signIn() {
 
 /* Get access token silently or interactively */
 async function getToken() {
-  if (!isInitialized) {
-    throw new Error("MSAL not initialized");
+  if (!msalInstance) {
+    await initializeMsal();
   }
   
   let account = msalInstance.getAllAccounts()[0];
@@ -84,20 +83,23 @@ async function getToken() {
 /* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
   const statusDiv = document.getElementById("status");
-  statusDiv.style.color = "green";
-  statusDiv.textContent = "Signing in and fetching email...";
+  statusDiv.style.color = "blue";
+  statusDiv.textContent = "Initializing authentication...";
 
   try {
     // Ensure MSAL is initialized before proceeding
-    if (!isInitialized) {
-      await initializeMsal();
-    }
+    await initializeMsal();
+    
+    statusDiv.textContent = "Signing in and fetching email...";
+    statusDiv.style.color = "green";
     
     const accessToken = await getToken();
 
     // Get the itemId and encode it for Graph API
     const itemId = Office.context.mailbox.item.itemId;
     const graphItemId = encodeURIComponent(itemId);
+
+    statusDiv.textContent = "Downloading email content...";
 
     // Call Microsoft Graph API to get the MIME content of the email
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
@@ -131,30 +133,20 @@ async function downloadEmailAsEml() {
   } catch (error) {
     statusDiv.style.color = "red";
     statusDiv.textContent = `Error: ${error.message}`;
-    console.error(error);
+    console.error("Download error:", error);
   }
 }
 
-/* Initialize MSAL and then set up Office add-in */
-Office.onReady(async (info) => {
+/* Initialize Office add-in */
+Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
-    try {
-      // Initialize MSAL first
-      await initializeMsal();
-      
-      // Hide the sideload message, show the app
-      document.getElementById("sideload-msg").style.display = "none";
-      document.getElementById("app-body").style.display = "block";
+    // Hide the sideload message, show the app
+    document.getElementById("sideload-msg").style.display = "none";
+    document.getElementById("app-body").style.display = "block";
 
-      // Attach click handler to the button AFTER MSAL is initialized
-      document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
-    } catch (error) {
-      console.error("MSAL Initialization failed:", error);
-      const statusDiv = document.getElementById("status");
-      if (statusDiv) {
-        statusDiv.style.color = "red";
-        statusDiv.textContent = "Failed to initialize authentication";
-      }
-    }
+    // Attach click handler to the button
+    document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
+    
+    console.log("Office add-in ready");
   }
 });
