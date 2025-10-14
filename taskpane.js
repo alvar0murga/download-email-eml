@@ -4,7 +4,7 @@ import * as msal from "@azure/msal-browser";
 const msalConfig = {
   auth: {
     clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
-    redirectUri: window.location.origin
+    redirectUri: "https://alvar0murga.github.io/download-email-eml/"
   }
 };
 
@@ -30,6 +30,7 @@ async function initializeMsal() {
   }
 }
 
+// ...existing code...
 /* Sign in user with popup */
 async function signIn() {
   if (!msalInstance) {
@@ -149,6 +150,6 @@ Office.onReady((info) => {
     // Attach click handler to the button
     document.getElementById("downloadBtn").onclick = downloadEmailAsEml;
     
-    console.log("Office add-in ready");
+    console.log("Office add-in ready", "Current location:", window.location.href);
   }
 });
