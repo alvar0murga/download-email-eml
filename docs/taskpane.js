@@ -1,4 +1,4 @@
-import * as msal from "@azure/msal-browser";
+// Remove the import line since we're loading MSAL via CDN
 
 /* Azure AD MSAL config */
 const msalConfig = {
@@ -18,7 +18,7 @@ async function initializeMsal() {
   }
   
   try {
-    // Create and initialize MSAL instance
+    // Create and initialize MSAL instance using global msal object
     msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
     console.log("MSAL Initialized successfully");
@@ -30,6 +30,7 @@ async function initializeMsal() {
   }
 }
 
+// ...rest of your code stays the same...
 /* Sign in user with popup */
 async function signIn() {
   if (!msalInstance) {
