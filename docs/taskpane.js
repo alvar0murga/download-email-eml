@@ -5,6 +5,10 @@ const msalConfig = {
   auth: {
     clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
     redirectUri: "https://alvar0murga.github.io/download-email-eml/"
+  },
+  cache: {
+    cacheLocation: "sessionStorage",
+    storeAuthStateInCookie: false,
   }
 };
 
@@ -37,7 +41,7 @@ async function signIn() {
   }
   
   const loginRequest = {
-    scopes: ["Mail.Read"]
+    scopes: ["https://graph.microsoft.com/Mail.Read"]
   };
 
   try {
@@ -63,7 +67,7 @@ async function getToken() {
   }
 
   const tokenRequest = {
-    scopes: ["Mail.Read"],
+    scopes: ["https://graph.microsoft.com/Mail.Read"],
     account: account
   };
 
@@ -82,6 +86,134 @@ async function getToken() {
   }
 }
 
+/* Helper function to wait/delay */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/* Try multiple approaches to download email */
+async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
+  const graphItemId = encodeURIComponent(itemId);
+  
+  // Method 1: Try direct MIME download
+  try {
+    console.log("Attempting direct MIME download...");
+    statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content (Method 1)...";
+    
+    const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Accept": "message/rfc822"
+      }
+    });
+
+    if (response.ok) {
+      const emlBlob = await response.blob();
+      console.log("Direct MIME download successful");
+      return emlBlob;
+    } else {
+      console.log("Direct MIME failed with status:", response.status);
+    }
+  } catch (error) {
+    console.log("Direct MIME method failed:", error);
+  }
+
+  // Wait a bit before trying next method
+  await delay(1000);
+
+  // Method 2: Try getting message details first, then MIME
+  try {
+    console.log("Attempting metadata + MIME download...");
+    statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content (Method 2)...";
+    
+    // First get the message metadata
+    const metadataResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}`, {
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Accept": "application/json"
+      }
+    });
+
+    if (metadataResponse.ok) {
+      const metadata = await metadataResponse.json();
+      console.log("Got metadata for:", metadata.subject);
+      
+      // Now try MIME with the confirmed ID
+      const mimeResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${metadata.id}/$value`, {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept": "message/rfc822"
+        }
+      });
+
+      if (mimeResponse.ok) {
+        const emlBlob = await mimeResponse.blob();
+        console.log("Metadata + MIME download successful");
+        return emlBlob;
+      }
+    }
+  } catch (error) {
+    console.log("Metadata + MIME method failed:", error);
+  }
+
+  // Wait a bit before trying next method
+  await delay(1000);
+
+  // Method 3: Create EML from JSON data
+  try {
+    console.log("Attempting JSON to EML conversion...");
+    statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content (Method 3)...";
+    
+    const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Accept": "application/json"
+      }
+    });
+
+    if (fullResponse.ok) {
+      const message = await fullResponse.json();
+      console.log("Got full message data, creating EML...");
+      
+      const emlContent = createEmlFromJson(message);
+      const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+      console.log("JSON to EML conversion successful");
+      return emlBlob;
+    }
+  } catch (error) {
+    console.log("JSON to EML method failed:", error);
+  }
+
+  throw new Error("All download methods failed");
+}
+
+/* Create EML format from JSON message data */
+function createEmlFromJson(message) {
+  const date = new Date(message.receivedDateTime).toUTCString();
+  const from = message.sender?.emailAddress?.address || "unknown@unknown.com";
+  const fromName = message.sender?.emailAddress?.name || "";
+  const to = message.toRecipients?.map(r => `${r.emailAddress.name || ""} <${r.emailAddress.address}>`).join(', ') || "";
+  const cc = message.ccRecipients?.map(r => `${r.emailAddress.name || ""} <${r.emailAddress.address}>`).join(', ') || "";
+  const bcc = message.bccRecipients?.map(r => `${r.emailAddress.name || ""} <${r.emailAddress.address}>`).join(', ') || "";
+  const subject = message.subject || "(No Subject)";
+  const body = message.body?.content || "";
+  const contentType = message.body?.contentType === "html" ? "text/html" : "text/plain";
+
+  let eml = `Date: ${date}\r\n`;
+  eml += `From: ${fromName ? `${fromName} <${from}>` : from}\r\n`;
+  if (to) eml += `To: ${to}\r\n`;
+  if (cc) eml += `Cc: ${cc}\r\n`;
+  if (bcc) eml += `Bcc: ${bcc}\r\n`;
+  eml += `Subject: ${subject}\r\n`;
+  eml += `MIME-Version: 1.0\r\n`;
+  eml += `Content-Type: ${contentType}; charset=utf-8\r\n`;
+  eml += `Content-Transfer-Encoding: 8bit\r\n`;
+  eml += `\r\n`;
+  eml += body;
+
+  return eml;
+}
+
 /* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
   const statusDiv = document.getElementById("status");
@@ -98,25 +230,12 @@ async function downloadEmailAsEml() {
     
     const accessToken = await getToken();
 
-    // Get the itemId and encode it for Graph API
+    // Get the itemId
     const itemId = Office.context.mailbox.item.itemId;
-    const graphItemId = encodeURIComponent(itemId);
+    console.log("Starting download for item ID:", itemId);
 
-    statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content...";
-
-    // Call Microsoft Graph API to get the MIME content of the email
-    const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "message/rfc822"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Graph API error: ${response.status} ${response.statusText}`);
-    }
-
-    const emlBlob = await response.blob();
+    // Try multiple download methods
+    const emlBlob = await downloadEmailWithRetry(accessToken, itemId, statusDiv);
 
     // Clean subject for filename
     const subject = Office.context.mailbox.item.subject || "email";
@@ -144,8 +263,12 @@ async function downloadEmailAsEml() {
 
   } catch (error) {
     statusDiv.className = "error";
+    console.error("Download error:", error);
+    
     if (error.message.includes("503")) {
-      statusDiv.textContent = "❌ SED Email Downloader - Service temporarily unavailable. Please try again.";
+      statusDiv.textContent = "❌ SED Email Downloader - Service temporarily unavailable. Please try again later.";
+    } else if (error.message.includes("All download methods failed")) {
+      statusDiv.textContent = "❌ SED Email Downloader - Unable to download email. Please check your connection and try again.";
     } else if (error.message.includes("404")) {
       statusDiv.textContent = "❌ SED Email Downloader - Email not found. Try refreshing Outlook.";
     } else if (error.message.includes("401") || error.message.includes("403")) {
@@ -153,7 +276,6 @@ async function downloadEmailAsEml() {
     } else {
       statusDiv.textContent = `❌ SED Email Downloader - Error: ${error.message}`;
     }
-    console.error("Download error:", error);
   }
 }
 
