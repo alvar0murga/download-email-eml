@@ -40,11 +40,12 @@ async function signIn() {
   }
   
   const loginRequest = {
-    scopes: ["Mail.Read"]
+    scopes: ["https://graph.microsoft.com/Mail.Read"]
   };
 
   try {
     const loginResponse = await msalInstance.loginPopup(loginRequest);
+    console.log("Login successful:", loginResponse.account.username);
     return loginResponse.account;
   } catch (error) {
     console.error("Login error:", error);
@@ -64,15 +65,17 @@ async function getToken() {
   }
 
   const tokenRequest = {
-    scopes: ["Mail.Read"],
+    scopes: ["https://graph.microsoft.com/Mail.Read"],
     account: account
   };
 
   try {
     const response = await msalInstance.acquireTokenSilent(tokenRequest);
+    console.log("Token acquired successfully");
     return response.accessToken;
   } catch (error) {
     if (error instanceof msal.InteractionRequiredAuthError) {
+      console.log("Interactive login required");
       const response = await msalInstance.acquireTokenPopup(tokenRequest);
       return response.accessToken;
     } else {
@@ -87,7 +90,6 @@ async function downloadEmailAsEml() {
   const statusDiv = document.getElementById("status");
   
   try {
-    // Show downloading status
     statusDiv.className = "downloading";
     statusDiv.textContent = "🔐 Authenticating...";
 
@@ -96,24 +98,50 @@ async function downloadEmailAsEml() {
     statusDiv.textContent = "📧 Fetching email content...";
     
     const accessToken = await getToken();
+    console.log("Access token obtained, length:", accessToken.length);
 
     const itemId = Office.context.mailbox.item.itemId;
+    console.log("Original Item ID:", itemId);
+    
     const graphItemId = encodeURIComponent(itemId);
+    console.log("Encoded Item ID:", graphItemId);
 
     statusDiv.textContent = "⬇️ Downloading email...";
 
-    const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
+    const graphUrl = `https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`;
+    console.log("Making request to:", graphUrl);
+
+    const response = await fetch(graphUrl, {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Accept": "message/rfc822"
       }
     });
 
+    console.log("Response status:", response.status);
+    console.log("Response statusText:", response.statusText);
+    
+    // Log response headers
+    for (let [key, value] of response.headers.entries()) {
+      console.log(`Response header ${key}: ${value}`);
+    }
+
     if (!response.ok) {
-      throw new Error(`Graph API error: ${response.status} ${response.statusText}`);
+      let errorDetails = `${response.status} ${response.statusText}`;
+      
+      try {
+        const errorBody = await response.text();
+        console.log("Error response body:", errorBody);
+        errorDetails += ` - ${errorBody}`;
+      } catch (e) {
+        console.log("Could not read error response body");
+      }
+      
+      throw new Error(`Graph API error: ${errorDetails}`);
     }
 
     const emlBlob = await response.blob();
+    console.log("Blob received, size:", emlBlob.size);
 
     const subject = Office.context.mailbox.item.subject || "email";
     const filename = subject.replace(/[/\\?%*:|"<>]/g, '-') + ".eml";
@@ -130,7 +158,6 @@ async function downloadEmailAsEml() {
     statusDiv.className = "success";
     statusDiv.textContent = "✅ Email downloaded successfully!";
     
-    // Auto-close the pane after 2 seconds
     setTimeout(() => {
       if (Office.context.ui) {
         Office.context.ui.closeContainer();
@@ -139,8 +166,17 @@ async function downloadEmailAsEml() {
 
   } catch (error) {
     statusDiv.className = "error";
-    statusDiv.textContent = `❌ Error: ${error.message}`;
-    console.error("Download error:", error);
+    console.error("Full error object:", error);
+    
+    if (error.message.includes("503")) {
+      statusDiv.textContent = "❌ Service temporarily unavailable. Please try again in a moment.";
+    } else if (error.message.includes("404")) {
+      statusDiv.textContent = "❌ Email not found. Try refreshing Outlook.";
+    } else if (error.message.includes("401") || error.message.includes("403")) {
+      statusDiv.textContent = "❌ Authentication error. Please try again.";
+    } else {
+      statusDiv.textContent = `❌ Error: ${error.message}`;
+    }
   }
 }
 
@@ -150,6 +186,7 @@ Office.onReady((info) => {
   
   if (info.host === Office.HostType.Outlook) {
     console.log("Host is Outlook, initializing auto-download...");
+    console.log("Current location:", window.location.href);
     
     // Hide sideload message, show app
     const sideloadMsg = document.getElementById("sideload-msg");
