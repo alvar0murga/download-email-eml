@@ -30,7 +30,6 @@ async function initializeMsal() {
   }
 }
 
-// ...rest of your code stays the same...
 /* Sign in user with popup */
 async function signIn() {
   if (!msalInstance) {
@@ -86,15 +85,16 @@ async function getToken() {
 /* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
   const statusDiv = document.getElementById("status");
-  statusDiv.style.color = "blue";
-  statusDiv.textContent = "Initializing authentication...";
-
+  
   try {
+    // Show downloading status with SED branding
+    statusDiv.className = "downloading";
+    statusDiv.textContent = "🔐 SED Email Downloader - Authenticating...";
+
     // Ensure MSAL is initialized before proceeding
     await initializeMsal();
     
-    statusDiv.textContent = "Signing in and fetching email...";
-    statusDiv.style.color = "green";
+    statusDiv.textContent = "📧 SED Email Downloader - Fetching email...";
     
     const accessToken = await getToken();
 
@@ -102,7 +102,7 @@ async function downloadEmailAsEml() {
     const itemId = Office.context.mailbox.item.itemId;
     const graphItemId = encodeURIComponent(itemId);
 
-    statusDiv.textContent = "Downloading email content...";
+    statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content...";
 
     // Call Microsoft Graph API to get the MIME content of the email
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
@@ -132,25 +132,42 @@ async function downloadEmailAsEml() {
     a.remove();
     URL.revokeObjectURL(url);
 
-    statusDiv.textContent = "Download started!";
+    statusDiv.className = "success";
+    statusDiv.textContent = "✅ SED Email Downloader - Download completed successfully!";
+    
+    // Auto-close the pane after 3 seconds
+    setTimeout(() => {
+      if (Office.context.ui) {
+        Office.context.ui.closeContainer();
+      }
+    }, 3000);
+
   } catch (error) {
-    statusDiv.style.color = "red";
-    statusDiv.textContent = `Error: ${error.message}`;
+    statusDiv.className = "error";
+    if (error.message.includes("503")) {
+      statusDiv.textContent = "❌ SED Email Downloader - Service temporarily unavailable. Please try again.";
+    } else if (error.message.includes("404")) {
+      statusDiv.textContent = "❌ SED Email Downloader - Email not found. Try refreshing Outlook.";
+    } else if (error.message.includes("401") || error.message.includes("403")) {
+      statusDiv.textContent = "❌ SED Email Downloader - Authentication error. Please try again.";
+    } else {
+      statusDiv.textContent = `❌ SED Email Downloader - Error: ${error.message}`;
+    }
     console.error("Download error:", error);
   }
 }
 
-/* Initialize Office add-in with debugging */
-console.log("Script loaded, waiting for Office...");
+/* Initialize Office add-in with SED branding */
+console.log("SED Email Downloader - Script loaded, waiting for Office...");
 
 // Add fallback initialization
 document.addEventListener('DOMContentLoaded', function() {
-  console.log("DOM loaded");
+  console.log("SED Email Downloader - DOM loaded");
   
   // If Office.onReady doesn't work, show the app anyway after a delay
   setTimeout(() => {
     if (document.getElementById("sideload-msg") && document.getElementById("sideload-msg").style.display !== "none") {
-      console.log("Office.onReady didn't trigger, showing app anyway");
+      console.log("SED Email Downloader - Office.onReady didn't trigger, showing app anyway");
       document.getElementById("sideload-msg").style.display = "none";
       document.getElementById("app-body").style.display = "block";
       
@@ -164,10 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 Office.onReady((info) => {
-  console.log("Office.onReady triggered", info);
+  console.log("SED Email Downloader - Office.onReady triggered", info);
   
   if (info.host === Office.HostType.Outlook) {
-    console.log("Host is Outlook, initializing...");
+    console.log("SED Email Downloader - Host is Outlook, initializing...");
     
     // Hide the sideload message, show the app
     const sideloadMsg = document.getElementById("sideload-msg");
@@ -175,25 +192,25 @@ Office.onReady((info) => {
     
     if (sideloadMsg) {
       sideloadMsg.style.display = "none";
-      console.log("Hid sideload message");
+      console.log("SED Email Downloader - Hid sideload message");
     }
     
     if (appBody) {
       appBody.style.display = "block";
-      console.log("Showed app body");
+      console.log("SED Email Downloader - Showed app body");
     }
 
     // Attach click handler to the button
     const downloadBtn = document.getElementById("downloadBtn");
     if (downloadBtn) {
       downloadBtn.onclick = downloadEmailAsEml;
-      console.log("Attached click handler");
+      console.log("SED Email Downloader - Attached click handler");
     } else {
-      console.error("Download button not found");
+      console.error("SED Email Downloader - Download button not found");
     }
     
-    console.log("Office add-in ready", "Current location:", window.location.href);
+    console.log("SED Email Downloader ready at:", window.location.href);
   } else {
-    console.log("Host is not Outlook:", info.host);
+    console.log("SED Email Downloader - Host is not Outlook:", info.host);
   }
 });
