@@ -5,6 +5,10 @@ const msalConfig = {
   auth: {
     clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
     redirectUri: "https://alvar0murga.github.io/download-email-eml/"
+  },
+  cache: {
+    cacheLocation: "sessionStorage",
+    storeAuthStateInCookie: false,
   }
 };
 
@@ -14,11 +18,10 @@ let msalInstance = null;
 /* Start MSAL - Create and initialize instance */
 async function initializeMsal() {
   if (msalInstance) {
-    return msalInstance; // Already initialized
+    return msalInstance;
   }
   
   try {
-    // Create and initialize MSAL instance using global msal object
     msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
     console.log("MSAL Initialized successfully");
@@ -30,7 +33,6 @@ async function initializeMsal() {
   }
 }
 
-// ...rest of your code stays the same...
 /* Sign in user with popup */
 async function signIn() {
   if (!msalInstance) {
@@ -52,12 +54,10 @@ async function signIn() {
 
 /* Get access token silently or interactively */
 async function getToken() {
-  // Ensure MSAL is initialized first
   if (!msalInstance) {
     await initializeMsal();
   }
   
-  // Now safely get accounts
   let account = msalInstance.getAllAccounts()[0];
   if (!account) {
     account = await signIn();
@@ -72,7 +72,6 @@ async function getToken() {
     const response = await msalInstance.acquireTokenSilent(tokenRequest);
     return response.accessToken;
   } catch (error) {
-    // Interaction required (consent or MFA)
     if (error instanceof msal.InteractionRequiredAuthError) {
       const response = await msalInstance.acquireTokenPopup(tokenRequest);
       return response.accessToken;
@@ -86,25 +85,23 @@ async function getToken() {
 /* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
   const statusDiv = document.getElementById("status");
-  statusDiv.style.color = "blue";
-  statusDiv.textContent = "Initializing authentication...";
-
+  
   try {
-    // Ensure MSAL is initialized before proceeding
+    // Show downloading status
+    statusDiv.className = "downloading";
+    statusDiv.textContent = "🔐 Authenticating...";
+
     await initializeMsal();
     
-    statusDiv.textContent = "Signing in and fetching email...";
-    statusDiv.style.color = "green";
+    statusDiv.textContent = "📧 Fetching email content...";
     
     const accessToken = await getToken();
 
-    // Get the itemId and encode it for Graph API
     const itemId = Office.context.mailbox.item.itemId;
     const graphItemId = encodeURIComponent(itemId);
 
-    statusDiv.textContent = "Downloading email content...";
+    statusDiv.textContent = "⬇️ Downloading email...";
 
-    // Call Microsoft Graph API to get the MIME content of the email
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -118,11 +115,9 @@ async function downloadEmailAsEml() {
 
     const emlBlob = await response.blob();
 
-    // Clean subject for filename
     const subject = Office.context.mailbox.item.subject || "email";
     const filename = subject.replace(/[/\\?%*:|"<>]/g, '-') + ".eml";
 
-    // Create a temporary download link and click it
     const url = URL.createObjectURL(emlBlob);
     const a = document.createElement("a");
     a.href = url;
@@ -132,68 +127,38 @@ async function downloadEmailAsEml() {
     a.remove();
     URL.revokeObjectURL(url);
 
-    statusDiv.textContent = "Download started!";
+    statusDiv.className = "success";
+    statusDiv.textContent = "✅ Email downloaded successfully!";
+    
+    // Auto-close the pane after 2 seconds
+    setTimeout(() => {
+      if (Office.context.ui) {
+        Office.context.ui.closeContainer();
+      }
+    }, 2000);
+
   } catch (error) {
-    statusDiv.style.color = "red";
-    statusDiv.textContent = `Error: ${error.message}`;
+    statusDiv.className = "error";
+    statusDiv.textContent = `❌ Error: ${error.message}`;
     console.error("Download error:", error);
   }
 }
 
-/* Initialize Office add-in with debugging */
-console.log("Script loaded, waiting for Office...");
-
-// Add fallback initialization
-document.addEventListener('DOMContentLoaded', function() {
-  console.log("DOM loaded");
-  
-  // If Office.onReady doesn't work, show the app anyway after a delay
-  setTimeout(() => {
-    if (document.getElementById("sideload-msg") && document.getElementById("sideload-msg").style.display !== "none") {
-      console.log("Office.onReady didn't trigger, showing app anyway");
-      document.getElementById("sideload-msg").style.display = "none";
-      document.getElementById("app-body").style.display = "block";
-      
-      // Try to attach click handler
-      const btn = document.getElementById("downloadBtn");
-      if (btn) {
-        btn.onclick = downloadEmailAsEml;
-      }
-    }
-  }, 3000);
-});
-
+/* Initialize Office add-in and auto-start download */
 Office.onReady((info) => {
   console.log("Office.onReady triggered", info);
   
   if (info.host === Office.HostType.Outlook) {
-    console.log("Host is Outlook, initializing...");
+    console.log("Host is Outlook, initializing auto-download...");
     
-    // Hide the sideload message, show the app
+    // Hide sideload message, show app
     const sideloadMsg = document.getElementById("sideload-msg");
     const appBody = document.getElementById("app-body");
     
-    if (sideloadMsg) {
-      sideloadMsg.style.display = "none";
-      console.log("Hid sideload message");
-    }
-    
-    if (appBody) {
-      appBody.style.display = "block";
-      console.log("Showed app body");
-    }
+    if (sideloadMsg) sideloadMsg.style.display = "none";
+    if (appBody) appBody.style.display = "block";
 
-    // Attach click handler to the button
-    const downloadBtn = document.getElementById("downloadBtn");
-    if (downloadBtn) {
-      downloadBtn.onclick = downloadEmailAsEml;
-      console.log("Attached click handler");
-    } else {
-      console.error("Download button not found");
-    }
-    
-    console.log("Office add-in ready", "Current location:", window.location.href);
-  } else {
-    console.log("Host is not Outlook:", info.host);
+    // Auto-start download immediately
+    downloadEmailAsEml();
   }
 });
