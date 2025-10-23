@@ -18,11 +18,10 @@ let msalInstance = null;
 /* Start MSAL - Create and initialize instance */
 async function initializeMsal() {
   if (msalInstance) {
-    return msalInstance; // Already initialized
+    return msalInstance;
   }
   
   try {
-    // Create and initialize MSAL instance using global msal object
     msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
     console.log("MSAL Initialized successfully");
@@ -55,12 +54,10 @@ async function signIn() {
 
 /* Get access token silently or interactively */
 async function getToken() {
-  // Ensure MSAL is initialized first
   if (!msalInstance) {
     await initializeMsal();
   }
   
-  // Now safely get accounts
   let account = msalInstance.getAllAccounts()[0];
   if (!account) {
     account = await signIn();
@@ -75,7 +72,6 @@ async function getToken() {
     const response = await msalInstance.acquireTokenSilent(tokenRequest);
     return response.accessToken;
   } catch (error) {
-    // Interaction required (consent or MFA)
     if (error instanceof msal.InteractionRequiredAuthError) {
       const response = await msalInstance.acquireTokenPopup(tokenRequest);
       return response.accessToken;
@@ -217,6 +213,7 @@ function createEmlFromJson(message) {
 /* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
   const statusDiv = document.getElementById("status");
+  const manualBtn = document.getElementById("manualBtn");
   
   try {
     // Show downloading status with SED branding
@@ -246,17 +243,23 @@ async function downloadEmailAsEml() {
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
+    a.style.display = "none";
     document.body.appendChild(a);
     a.click();
-    a.remove();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
     statusDiv.className = "success";
     statusDiv.textContent = "✅ SED Email Downloader - Download completed successfully!";
     
+    // Hide manual button since download worked
+    if (manualBtn) {
+      manualBtn.style.display = "none";
+    }
+    
     // Auto-close the pane after 3 seconds
     setTimeout(() => {
-      if (Office.context.ui) {
+      if (Office.context.ui && Office.context.ui.closeContainer) {
         Office.context.ui.closeContainer();
       }
     }, 3000);
@@ -264,6 +267,11 @@ async function downloadEmailAsEml() {
   } catch (error) {
     statusDiv.className = "error";
     console.error("Download error:", error);
+    
+    // Show manual retry button
+    if (manualBtn) {
+      manualBtn.style.display = "block";
+    }
     
     if (error.message.includes("503")) {
       statusDiv.textContent = "❌ SED Email Downloader - Service temporarily unavailable. Please try again later.";
@@ -286,20 +294,11 @@ console.log("SED Email Downloader - Script loaded, waiting for Office...");
 document.addEventListener('DOMContentLoaded', function() {
   console.log("SED Email Downloader - DOM loaded");
   
-  // If Office.onReady doesn't work, show the app anyway after a delay
-  setTimeout(() => {
-    if (document.getElementById("sideload-msg") && document.getElementById("sideload-msg").style.display !== "none") {
-      console.log("SED Email Downloader - Office.onReady didn't trigger, showing app anyway");
-      document.getElementById("sideload-msg").style.display = "none";
-      document.getElementById("app-body").style.display = "block";
-      
-      // Try to attach click handler
-      const btn = document.getElementById("downloadBtn");
-      if (btn) {
-        btn.onclick = downloadEmailAsEml;
-      }
-    }
-  }, 3000);
+  // Set up manual button click handler
+  const manualBtn = document.getElementById("manualBtn");
+  if (manualBtn) {
+    manualBtn.onclick = downloadEmailAsEml;
+  }
 });
 
 Office.onReady((info) => {
@@ -322,14 +321,16 @@ Office.onReady((info) => {
       console.log("SED Email Downloader - Showed app body");
     }
 
-    // Attach click handler to the button
-    const downloadBtn = document.getElementById("downloadBtn");
-    if (downloadBtn) {
-      downloadBtn.onclick = downloadEmailAsEml;
-      console.log("SED Email Downloader - Attached click handler");
-    } else {
-      console.error("SED Email Downloader - Download button not found");
+    // Set up manual button click handler
+    const manualBtn = document.getElementById("manualBtn");
+    if (manualBtn) {
+      manualBtn.onclick = downloadEmailAsEml;
+      console.log("SED Email Downloader - Attached manual button handler");
     }
+    
+    // AUTO-START THE DOWNLOAD IMMEDIATELY
+    console.log("SED Email Downloader - Auto-starting download...");
+    downloadEmailAsEml();
     
     console.log("SED Email Downloader ready at:", window.location.href);
   } else {
