@@ -33,7 +33,7 @@
   <Form xsi:type="ItemRead">
     <DesktopSettings>
       <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
-      <RequestedHeight>250</RequestedHeight>
+      <RequestedHeight>300</RequestedHeight>
     </DesktopSettings>
   </Form>
 </FormSettings>
@@ -59,7 +59,6 @@
   <Hosts>
     <Host xsi:type="MailHost">
       <DesktopFormFactor>
-        <FunctionFile resid="Commands.Url"/>
         <ExtensionPoint xsi:type="MessageReadCommandSurface">
           <OfficeTab id="TabDefault">
             <Group id="msgReadGroup">
@@ -75,8 +74,8 @@
                   <bt:Image size="32" resid="Icon.32x32"/>
                   <bt:Image size="80" resid="Icon.80x80"/>
                 </Icon>
-                <Action xsi:type="ExecuteFunction">
-                  <FunctionName>downloadEmail</FunctionName>
+                <Action xsi:type="ShowTaskpane">
+                  <SourceLocation resid="Taskpane.Url"/>
                 </Action>
               </Control>
             </Group>
@@ -94,7 +93,6 @@
     </bt:Images>
 
     <bt:Urls>
-      <bt:Url id="Commands.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/commands.html"/>
       <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
     </bt:Urls>
 
