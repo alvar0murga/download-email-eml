@@ -61,7 +61,13 @@
       color: #d13438;
     }
 
-    #manualBtn {
+    .waiting {
+      background-color: #fff4ce;
+      border-color: #ffb900;
+      color: #8a6914;
+    }
+
+    #downloadBtn {
       background-color: #0078d4;
       color: white;
       border: none;
@@ -72,11 +78,24 @@
       width: 100%;
       margin-bottom: 15px;
       font-weight: 600;
-      display: none;
     }
     
-    #manualBtn:hover {
+    #downloadBtn:hover {
       background-color: #106ebe;
+    }
+
+    #downloadBtn:disabled {
+      background-color: #a19f9d;
+      cursor: not-allowed;
+    }
+
+    .debug-info {
+      font-size: 12px;
+      color: #605e5c;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f8f8f8;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -88,8 +107,14 @@
       <img src="assets/icon-64.png" alt="SED Email Downloader" class="logo">
       <h1>SED Email Downloader</h1>
     </div>
-    <div id="status" class="downloading">Starting download...</div>
-    <button id="manualBtn">📧 Try Download Again</button>
+    <div id="status" class="waiting">Ready to download email...</div>
+    <button id="downloadBtn">📧 Download Email as .eml</button>
+    <div id="debug-info" class="debug-info">
+      <strong>Debug Info:</strong><br>
+      Office Ready: <span id="office-ready">No</span><br>
+      MSAL Ready: <span id="msal-ready">No</span><br>
+      Auto-download: <span id="auto-download">Pending</span>
+    </div>
   </div>
 
   <script src="taskpane.js"></script>

@@ -14,6 +14,14 @@ const msalConfig = {
 
 // Don't create instance immediately - wait for initialization
 let msalInstance = null;
+let isDownloading = false;
+
+function updateDebugInfo(key, value) {
+  const element = document.getElementById(key);
+  if (element) {
+    element.textContent = value;
+  }
+}
 
 /* Start MSAL - Create and initialize instance */
 async function initializeMsal() {
@@ -24,10 +32,10 @@ async function initializeMsal() {
   try {
     msalInstance = new msal.PublicClientApplication(msalConfig);
     await msalInstance.initialize();
-    console.log("MSAL Initialized successfully");
+    updateDebugInfo('msal-ready', 'Yes');
     return msalInstance;
   } catch (error) {
-    console.error("Error initializing MSAL:", error);
+    updateDebugInfo('msal-ready', 'Error: ' + error.message);
     msalInstance = null;
     throw error;
   }
@@ -47,7 +55,6 @@ async function signIn() {
     const loginResponse = await msalInstance.loginPopup(loginRequest);
     return loginResponse.account;
   } catch (error) {
-    console.error("Login error:", error);
     throw error;
   }
 }
@@ -76,7 +83,6 @@ async function getToken() {
       const response = await msalInstance.acquireTokenPopup(tokenRequest);
       return response.accessToken;
     } else {
-      console.error("Token acquisition error:", error);
       throw error;
     }
   }
@@ -93,7 +99,6 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
   
   // Method 1: Try direct MIME download
   try {
-    console.log("Attempting direct MIME download...");
     statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content (Method 1)...";
     
     const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
@@ -105,13 +110,10 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
     if (response.ok) {
       const emlBlob = await response.blob();
-      console.log("Direct MIME download successful");
       return emlBlob;
-    } else {
-      console.log("Direct MIME failed with status:", response.status);
     }
   } catch (error) {
-    console.log("Direct MIME method failed:", error);
+    // Continue to next method
   }
 
   // Wait a bit before trying next method
@@ -119,7 +121,6 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
   // Method 2: Try getting message details first, then MIME
   try {
-    console.log("Attempting metadata + MIME download...");
     statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content (Method 2)...";
     
     // First get the message metadata
@@ -132,7 +133,6 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
     if (metadataResponse.ok) {
       const metadata = await metadataResponse.json();
-      console.log("Got metadata for:", metadata.subject);
       
       // Now try MIME with the confirmed ID
       const mimeResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${metadata.id}/$value`, {
@@ -144,12 +144,11 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
       if (mimeResponse.ok) {
         const emlBlob = await mimeResponse.blob();
-        console.log("Metadata + MIME download successful");
         return emlBlob;
       }
     }
   } catch (error) {
-    console.log("Metadata + MIME method failed:", error);
+    // Continue to next method
   }
 
   // Wait a bit before trying next method
@@ -157,7 +156,6 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
   // Method 3: Create EML from JSON data
   try {
-    console.log("Attempting JSON to EML conversion...");
     statusDiv.textContent = "⬇️ SED Email Downloader - Downloading content (Method 3)...";
     
     const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
@@ -169,15 +167,13 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
     if (fullResponse.ok) {
       const message = await fullResponse.json();
-      console.log("Got full message data, creating EML...");
       
       const emlContent = createEmlFromJson(message);
       const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
-      console.log("JSON to EML conversion successful");
       return emlBlob;
     }
   } catch (error) {
-    console.log("JSON to EML method failed:", error);
+    // All methods failed
   }
 
   throw new Error("All download methods failed");
@@ -212,24 +208,42 @@ function createEmlFromJson(message) {
 
 /* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
+  if (isDownloading) {
+    return;
+  }
+  
+  isDownloading = true;
   const statusDiv = document.getElementById("status");
-  const manualBtn = document.getElementById("manualBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
   
   try {
+    // Disable button and show progress
+    if (downloadBtn) {
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = "⏳ Downloading...";
+    }
+    
     // Show downloading status with SED branding
-    statusDiv.className = "downloading";
-    statusDiv.textContent = "🔐 SED Email Downloader - Authenticating...";
+    if (statusDiv) {
+      statusDiv.className = "downloading";
+      statusDiv.textContent = "🔐 SED Email Downloader - Authenticating...";
+    }
 
     // Ensure MSAL is initialized before proceeding
     await initializeMsal();
     
-    statusDiv.textContent = "📧 SED Email Downloader - Fetching email...";
+    if (statusDiv) {
+      statusDiv.textContent = "📧 SED Email Downloader - Fetching email...";
+    }
     
     const accessToken = await getToken();
 
     // Get the itemId
     const itemId = Office.context.mailbox.item.itemId;
-    console.log("Starting download for item ID:", itemId);
+
+    if (!itemId) {
+      throw new Error("No item ID found - make sure you're viewing an email");
+    }
 
     // Try multiple download methods
     const emlBlob = await downloadEmailWithRetry(accessToken, itemId, statusDiv);
@@ -249,12 +263,15 @@ async function downloadEmailAsEml() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    statusDiv.className = "success";
-    statusDiv.textContent = "✅ SED Email Downloader - Download completed successfully!";
+    if (statusDiv) {
+      statusDiv.className = "success";
+      statusDiv.textContent = "✅ SED Email Downloader - Download completed successfully!";
+    }
     
-    // Hide manual button since download worked
-    if (manualBtn) {
-      manualBtn.style.display = "none";
+    // Re-enable button
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = "📧 Download Email as .eml";
     }
     
     // Auto-close the pane after 3 seconds
@@ -265,75 +282,58 @@ async function downloadEmailAsEml() {
     }, 3000);
 
   } catch (error) {
-    statusDiv.className = "error";
-    console.error("Download error:", error);
-    
-    // Show manual retry button
-    if (manualBtn) {
-      manualBtn.style.display = "block";
-    }
-    
-    if (error.message.includes("503")) {
-      statusDiv.textContent = "❌ SED Email Downloader - Service temporarily unavailable. Please try again later.";
-    } else if (error.message.includes("All download methods failed")) {
-      statusDiv.textContent = "❌ SED Email Downloader - Unable to download email. Please check your connection and try again.";
-    } else if (error.message.includes("404")) {
-      statusDiv.textContent = "❌ SED Email Downloader - Email not found. Try refreshing Outlook.";
-    } else if (error.message.includes("401") || error.message.includes("403")) {
-      statusDiv.textContent = "❌ SED Email Downloader - Authentication error. Please try again.";
-    } else {
+    if (statusDiv) {
+      statusDiv.className = "error";
       statusDiv.textContent = `❌ SED Email Downloader - Error: ${error.message}`;
     }
+    
+    // Re-enable button
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = "📧 Try Download Again";
+    }
   }
+  
+  isDownloading = false;
 }
 
 /* Initialize Office add-in with SED branding */
-console.log("SED Email Downloader - Script loaded, waiting for Office...");
 
 // Add fallback initialization
 document.addEventListener('DOMContentLoaded', function() {
-  console.log("SED Email Downloader - DOM loaded");
-  
   // Set up manual button click handler
-  const manualBtn = document.getElementById("manualBtn");
-  if (manualBtn) {
-    manualBtn.onclick = downloadEmailAsEml;
+  const downloadBtn = document.getElementById("downloadBtn");
+  if (downloadBtn) {
+    downloadBtn.onclick = downloadEmailAsEml;
   }
 });
 
 Office.onReady((info) => {
-  console.log("SED Email Downloader - Office.onReady triggered", info);
+  updateDebugInfo('office-ready', 'Yes');
   
   if (info.host === Office.HostType.Outlook) {
-    console.log("SED Email Downloader - Host is Outlook, initializing...");
-    
     // Hide the sideload message, show the app
     const sideloadMsg = document.getElementById("sideload-msg");
     const appBody = document.getElementById("app-body");
     
     if (sideloadMsg) {
       sideloadMsg.style.display = "none";
-      console.log("SED Email Downloader - Hid sideload message");
     }
     
     if (appBody) {
       appBody.style.display = "block";
-      console.log("SED Email Downloader - Showed app body");
     }
 
     // Set up manual button click handler
-    const manualBtn = document.getElementById("manualBtn");
-    if (manualBtn) {
-      manualBtn.onclick = downloadEmailAsEml;
-      console.log("SED Email Downloader - Attached manual button handler");
+    const downloadBtn = document.getElementById("downloadBtn");
+    if (downloadBtn) {
+      downloadBtn.onclick = downloadEmailAsEml;
     }
     
-    // AUTO-START THE DOWNLOAD IMMEDIATELY
-    console.log("SED Email Downloader - Auto-starting download...");
-    downloadEmailAsEml();
-    
-    console.log("SED Email Downloader ready at:", window.location.href);
-  } else {
-    console.log("SED Email Downloader - Host is not Outlook:", info.host);
+    // AUTO-START THE DOWNLOAD after a short delay
+    setTimeout(() => {
+      updateDebugInfo('auto-download', 'Starting...');
+      downloadEmailAsEml();
+    }, 2000);
   }
 });
