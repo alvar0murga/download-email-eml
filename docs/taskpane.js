@@ -207,6 +207,7 @@ function createEmlFromJson(message) {
 }
 
 /* Download the currently selected email as .eml */
+/* Download the currently selected email as .eml */
 async function downloadEmailAsEml() {
   if (isDownloading) {
     return;
@@ -265,21 +266,23 @@ async function downloadEmailAsEml() {
 
     if (statusDiv) {
       statusDiv.className = "success";
-      statusDiv.textContent = "✅ SED Email Downloader - Download completed successfully!";
+      statusDiv.textContent = "✅ SED Email Downloader - Download completed! You can close this panel.";
     }
     
-    // Re-enable button
+    // Change button to close button instead of auto-closing
     if (downloadBtn) {
       downloadBtn.disabled = false;
-      downloadBtn.textContent = "📧 Download Email as .eml";
+      downloadBtn.textContent = "✖️ Close Panel";
+      downloadBtn.onclick = function() {
+        // Just hide the panel content instead of trying to close
+        const appBody = document.getElementById("app-body");
+        if (appBody) {
+          appBody.style.display = "none";
+        }
+        // Show a minimal message
+        document.body.innerHTML = '<div style="padding: 20px; text-align: center; font-family: Segoe UI;">Download completed! You can manually close this panel.</div>';
+      };
     }
-    
-    // Auto-close the pane after 3 seconds
-    setTimeout(() => {
-      if (Office.context.ui && Office.context.ui.closeContainer) {
-        Office.context.ui.closeContainer();
-      }
-    }, 3000);
 
   } catch (error) {
     if (statusDiv) {
@@ -287,10 +290,11 @@ async function downloadEmailAsEml() {
       statusDiv.textContent = `❌ SED Email Downloader - Error: ${error.message}`;
     }
     
-    // Re-enable button
+    // Re-enable button for retry
     if (downloadBtn) {
       downloadBtn.disabled = false;
       downloadBtn.textContent = "📧 Try Download Again";
+      downloadBtn.onclick = downloadEmailAsEml; // Reset to download function
     }
   }
   
