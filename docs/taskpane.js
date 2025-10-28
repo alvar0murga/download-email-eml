@@ -81,10 +81,37 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/* Helper function to safely encode item ID for Graph API */
+function safeEncodeItemId(itemId) {
+  if (!itemId) {
+    throw new Error("Item ID is null or undefined");
+  }
+  
+  // Check if the itemId looks malformed (too short or only padding)
+  if (itemId.length < 10 || itemId.match(/^[A-Za-z0-9+/]*=*$/)) {
+    throw new Error(`Item ID appears malformed: ${itemId}`);
+  }
+  
+  try {
+    // Try different encoding approaches
+    return encodeURIComponent(itemId);
+  } catch (error) {
+    throw new Error(`Failed to encode item ID: ${error.message}`);
+  }
+}
+
 /* Try multiple approaches to download email with detailed error reporting */
 async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
-  const graphItemId = encodeURIComponent(itemId);
   let errorDetails = [];
+  
+  // Validate and encode the item ID
+  let graphItemId;
+  try {
+    graphItemId = safeEncodeItemId(itemId);
+    statusDiv.textContent = `⬇️ Processing item ID: ${itemId.substring(0, 20)}...`;
+  } catch (error) {
+    throw new Error(`Invalid item ID: ${error.message}. Try refreshing the email or selecting a different one.`);
+  }
   
   // Method 1: Try direct MIME download
   try {
