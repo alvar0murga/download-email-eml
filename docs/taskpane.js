@@ -133,53 +133,100 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
     await delay(500);
   }
   
-  // Special handling for very recent emails - try to find by subject
+  // Enhanced fallback for very recent emails
   try {
     statusDiv.textContent = "⬇️ Trying recent email fallback method...";
     
-    // Get the subject from the Outlook context
+    // Get the current email info from Outlook context
     const currentSubject = Office.context.mailbox.item.subject;
     const currentFrom = Office.context.mailbox.item.from?.emailAddress?.address;
+    const currentDate = Office.context.mailbox.item.dateTimeCreated || Office.context.mailbox.item.dateTimeModified;
     
-    if (currentSubject && currentFrom) {
-      // Search for the email by subject and sender in recent messages
-      const searchQuery = `subject:"${currentSubject}" AND from:${currentFrom}`;
-      const encodedQuery = encodeURIComponent(searchQuery);
+    if (currentSubject) {
+      // Try simpler approaches for recent emails
       
-      const searchResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages?$search="${encodedQuery}"&$top=5&$select=id,subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Accept": "application/json"
-        }
-      });
-      
-      if (searchResponse.ok) {
-        const searchResults = await searchResponse.json();
+      // Method 1: Get recent messages and match by subject
+      try {
+        statusDiv.textContent = "⬇️ Searching recent messages by subject...";
         
-        if (searchResults.value && searchResults.value.length > 0) {
-          // Find the most recent match
-          const matchedEmail = searchResults.value[0];
-          statusDiv.textContent = `✅ Found recent email via search!`;
+        const recentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages?$top=20&$orderby=receivedDateTime desc&$select=id,subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Accept": "application/json"
+          }
+        });
+        
+        if (recentResponse.ok) {
+          const recentMessages = await recentResponse.json();
           
-          const emlContent = createEmlFromJson(matchedEmail);
-          const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
-          return emlBlob;
+          // Find email with matching subject (and optionally sender)
+          const matchedEmail = recentMessages.value.find(msg => {
+            const subjectMatch = msg.subject === currentSubject;
+            const senderMatch = !currentFrom || msg.sender?.emailAddress?.address === currentFrom;
+            return subjectMatch && senderMatch;
+          });
+          
+          if (matchedEmail) {
+            statusDiv.textContent = `✅ Found recent email via subject match!`;
+            
+            const emlContent = createEmlFromJson(matchedEmail);
+            const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+            return emlBlob;
+          } else {
+            errorDetails.push("Recent email fallback: No matching subject found in recent messages");
+          }
         } else {
-          errorDetails.push("Recent email fallback: No matching emails found in search");
+          const errorText = await recentResponse.text();
+          errorDetails.push(`Recent email fallback failed: ${recentResponse.status} - ${errorText}`);
         }
-      } else {
-        const errorText = await searchResponse.text();
-        errorDetails.push(`Recent email fallback failed: ${searchResponse.status} - ${errorText}`);
+      } catch (error) {
+        errorDetails.push(`Recent email search error: ${error.message}`);
+      }
+      
+      // Method 2: Try using inbox folder approach
+      try {
+        statusDiv.textContent = "⬇️ Trying inbox folder approach...";
+        
+        const inboxResponse = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=10&$orderby=receivedDateTime desc&$select=id,subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Accept": "application/json"
+          }
+        });
+        
+        if (inboxResponse.ok) {
+          const inboxMessages = await inboxResponse.json();
+          
+          const matchedEmail = inboxMessages.value.find(msg => {
+            return msg.subject === currentSubject && 
+                   (!currentFrom || msg.sender?.emailAddress?.address === currentFrom);
+          });
+          
+          if (matchedEmail) {
+            statusDiv.textContent = `✅ Found recent email via inbox search!`;
+            
+            const emlContent = createEmlFromJson(matchedEmail);
+            const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+            return emlBlob;
+          } else {
+            errorDetails.push("Inbox fallback: No matching email found in inbox");
+          }
+        } else {
+          const errorText = await inboxResponse.text();
+          errorDetails.push(`Inbox fallback failed: ${inboxResponse.status} - ${errorText}`);
+        }
+      } catch (error) {
+        errorDetails.push(`Inbox search error: ${error.message}`);
       }
     } else {
-      errorDetails.push("Recent email fallback: Missing subject or sender information");
+      errorDetails.push("Recent email fallback: No subject available");
     }
   } catch (error) {
-    errorDetails.push(`Recent email fallback error: ${error.message}`);
+    errorDetails.push(`Overall fallback error: ${error.message}`);
   }
   
   // If all methods failed, show detailed error with helpful message
-  const detailedError = `All methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}\n\n🕐 This appears to be a very recent email (received within the last few hours).\n📧 Recent emails sometimes take time to fully sync with Microsoft Graph API.\n\n💡 Solutions:\n- Wait 30-60 minutes and try again\n- Try refreshing the email in Outlook\n- The email should work normally once it's fully synced`;
+  const detailedError = `All methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}\n\n🕐 This appears to be a very recent email (received within the last few hours).\n📧 Recent emails sometimes take time to fully sync with Microsoft Graph API.\n\n💡 Solutions:\n- Wait 30-60 minutes and try again\n- Try refreshing the email in Outlook\n- The email should work normally once it's fully synced\n\n📝 Current email info:\n- Subject: ${Office.context.mailbox.item.subject}\n- From: ${Office.context.mailbox.item.from?.emailAddress?.address || 'Unknown'}`;
   throw new Error(detailedError);
 }
 
