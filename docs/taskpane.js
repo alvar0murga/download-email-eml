@@ -85,108 +85,56 @@ function delay(ms) {
 async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
   let errorDetails = [];
   
-  // Simple validation and encoding
+  // Simple validation
   if (!itemId) {
     throw new Error("Item ID is null or undefined");
   }
   
-  let graphItemId;
-  try {
-    graphItemId = encodeURIComponent(itemId);
-    statusDiv.textContent = `⬇️ Processing item ID: ${itemId.substring(0, 30)}...`;
-  } catch (error) {
-    throw new Error(`Failed to encode item ID: ${error.message}`);
-  }
+  statusDiv.textContent = `⬇️ Processing item ID: ${itemId.substring(0, 30)}...`;
   
-  // Method 1: Try direct MIME download
-  try {
-    statusDiv.textContent = "⬇️ Method 1: Direct MIME download...";
+  // Try different encoding approaches for the item ID
+  const encodingMethods = [
+    { name: "Direct (no encoding)", value: itemId },
+    { name: "URI Component", value: encodeURIComponent(itemId) },
+    { name: "URI", value: encodeURI(itemId) },
+    { name: "Base64 safe", value: btoa(itemId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
+  ];
+  
+  for (let i = 0; i < encodingMethods.length; i++) {
+    const method = encodingMethods[i];
+    const graphItemId = method.value;
     
-    const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "message/rfc822"
-      }
-    });
-
-    if (response.ok) {
-      const emlBlob = await response.blob();
-      return emlBlob;
-    } else {
-      const errorText = await response.text();
-      errorDetails.push(`Method 1 failed: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-  } catch (error) {
-    errorDetails.push(`Method 1 error: ${error.message}`);
-  }
-
-  await delay(1000);
-
-  // Method 2: Try getting message details first, then MIME
-  try {
-    statusDiv.textContent = "⬇️ Method 2: Metadata + MIME...";
-    
-    const metadataResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json"
-      }
-    });
-
-    if (metadataResponse.ok) {
-      const metadata = await metadataResponse.json();
+    try {
+      statusDiv.textContent = `⬇️ Trying ${method.name} encoding...`;
       
-      const mimeResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${metadata.id}/$value`, {
+      // Try Method 3 first (JSON to EML) as it's most likely to work
+      const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "Accept": "message/rfc822"
+          "Accept": "application/json"
         }
       });
 
-      if (mimeResponse.ok) {
-        const emlBlob = await mimeResponse.blob();
+      if (fullResponse.ok) {
+        const message = await fullResponse.json();
+        statusDiv.textContent = `✅ Success with ${method.name} encoding!`;
+        
+        const emlContent = createEmlFromJson(message);
+        const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
         return emlBlob;
       } else {
-        const errorText = await mimeResponse.text();
-        errorDetails.push(`Method 2 MIME failed: ${mimeResponse.status} ${mimeResponse.statusText} - ${errorText}`);
+        const errorText = await fullResponse.text();
+        errorDetails.push(`${method.name} failed: ${fullResponse.status} ${fullResponse.statusText} - ${errorText}`);
       }
-    } else {
-      const errorText = await metadataResponse.text();
-      errorDetails.push(`Method 2 metadata failed: ${metadataResponse.status} ${metadataResponse.statusText} - ${errorText}`);
+    } catch (error) {
+      errorDetails.push(`${method.name} error: ${error.message}`);
     }
-  } catch (error) {
-    errorDetails.push(`Method 2 error: ${error.message}`);
-  }
-
-  await delay(1000);
-
-  // Method 3: Create EML from JSON data
-  try {
-    statusDiv.textContent = "⬇️ Method 3: JSON to EML conversion...";
     
-    const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json"
-      }
-    });
-
-    if (fullResponse.ok) {
-      const message = await fullResponse.json();
-      
-      const emlContent = createEmlFromJson(message);
-      const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
-      return emlBlob;
-    } else {
-      const errorText = await fullResponse.text();
-      errorDetails.push(`Method 3 failed: ${fullResponse.status} ${fullResponse.statusText} - ${errorText}`);
-    }
-  } catch (error) {
-    errorDetails.push(`Method 3 error: ${error.message}`);
+    await delay(500);
   }
-
-  // Show detailed error information
-  const detailedError = `All methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}`;
+  
+  // If all encoding methods failed, show detailed error
+  const detailedError = `All encoding methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}\n\nThis might be a very recent email that hasn't fully synced yet. Try waiting a few minutes or selecting an older email.`;
   throw new Error(detailedError);
 }
 
