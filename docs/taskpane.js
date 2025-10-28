@@ -99,9 +99,13 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
     if (response.ok) {
       const emlBlob = await response.blob();
       return emlBlob;
+    } else {
+      console.log("Method 1 failed with status:", response.status);
+      const errorText = await response.text();
+      console.log("Error response:", errorText);
     }
   } catch (error) {
-    // Continue to next method
+    console.log("Method 1 error:", error);
   }
 
   await delay(1000);
@@ -119,6 +123,7 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
     if (metadataResponse.ok) {
       const metadata = await metadataResponse.json();
+      console.log("Got metadata for:", metadata.subject);
       
       const mimeResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${metadata.id}/$value`, {
         headers: {
@@ -130,10 +135,14 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
       if (mimeResponse.ok) {
         const emlBlob = await mimeResponse.blob();
         return emlBlob;
+      } else {
+        console.log("Method 2 MIME failed with status:", mimeResponse.status);
       }
+    } else {
+      console.log("Method 2 metadata failed with status:", metadataResponse.status);
     }
   } catch (error) {
-    // Continue to next method
+    console.log("Method 2 error:", error);
   }
 
   await delay(1000);
@@ -151,16 +160,21 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
 
     if (fullResponse.ok) {
       const message = await fullResponse.json();
+      console.log("Got full message data for:", message.subject);
       
       const emlContent = createEmlFromJson(message);
       const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
       return emlBlob;
+    } else {
+      console.log("Method 3 failed with status:", fullResponse.status);
+      const errorText = await fullResponse.text();
+      console.log("Method 3 error response:", errorText);
     }
   } catch (error) {
-    // All methods failed
+    console.log("Method 3 error:", error);
   }
 
-  throw new Error("All download methods failed");
+  throw new Error("All download methods failed - check console for details");
 }
 
 /* Create EML format from JSON message data */
@@ -247,20 +261,26 @@ async function downloadEmailAsEml() {
       statusDiv.textContent = "🔐 SED Email Downloader - Authenticating...";
     }
 
+    console.log("Starting download process...");
     await initializeMsal();
+    console.log("MSAL initialized");
     
     if (statusDiv) {
       statusDiv.textContent = "📧 SED Email Downloader - Fetching email...";
     }
     
     const accessToken = await getToken();
+    console.log("Got access token, length:", accessToken ? accessToken.length : 0);
+    
     const itemId = Office.context.mailbox.item.itemId;
+    console.log("Item ID:", itemId);
 
     if (!itemId) {
       throw new Error("No item ID found - make sure you're viewing an email");
     }
 
     const emlBlob = await downloadEmailWithRetry(accessToken, itemId, statusDiv);
+    console.log("Download successful, blob size:", emlBlob.size);
 
     // Clean subject for filename
     const subject = Office.context.mailbox.item.subject || "email";
@@ -286,6 +306,8 @@ async function downloadEmailAsEml() {
     }
 
   } catch (error) {
+    console.error("Download error:", error);
+    
     if (statusDiv) {
       statusDiv.className = "error";
       statusDiv.textContent = `❌ SED Email Downloader - Error: ${error.message}`;
