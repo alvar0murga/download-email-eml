@@ -81,27 +81,15 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/* Helper function to safely encode item ID for Graph API */
-function safeEncodeItemId(itemId) {
-  if (!itemId) {
-    throw new Error("Item ID is null or undefined");
-  }
-  
-  // Remove ALL validation - just encode the itemId as-is
-  // Outlook item IDs can be long and contain base64-style characters
-  
-  try {
-    return encodeURIComponent(itemId);
-  } catch (error) {
-    throw new Error(`Failed to encode item ID: ${error.message}`);
-  }
-}
-
 /* Try multiple approaches to download email with detailed error reporting */
 async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
   let errorDetails = [];
   
-  // Encode the item ID without validation
+  // Simple validation and encoding
+  if (!itemId) {
+    throw new Error("Item ID is null or undefined");
+  }
+  
   let graphItemId;
   try {
     graphItemId = encodeURIComponent(itemId);
