@@ -87,13 +87,11 @@ function safeEncodeItemId(itemId) {
     throw new Error("Item ID is null or undefined");
   }
   
-  // Check if the itemId looks malformed (too short or only padding)
-  if (itemId.length < 10 || itemId.match(/^[A-Za-z0-9+/]*=*$/)) {
-    throw new Error(`Item ID appears malformed: ${itemId}`);
-  }
+  // Remove the overly strict validation that's causing issues
+  // Some valid Outlook item IDs can be short or contain only base64 characters
   
   try {
-    // Try different encoding approaches
+    // Just encode the itemId as-is
     return encodeURIComponent(itemId);
   } catch (error) {
     throw new Error(`Failed to encode item ID: ${error.message}`);
