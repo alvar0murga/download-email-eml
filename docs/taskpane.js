@@ -167,36 +167,39 @@ function createEmlFromJson(message) {
 
 /* Download using a different method to avoid search bar issue */
 function triggerDownload(blob, filename) {
+  // Create download link with proper MIME type
   const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
   
-  // Instead of using click(), use window.open which is less likely to trigger search
-  const newWindow = window.open(url, '_blank');
-  if (newWindow) {
-    setTimeout(() => {
-      newWindow.close();
-      URL.revokeObjectURL(url);
-    }, 1000);
-  } else {
-    // Fallback: create a link that user can click manually
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.textContent = 'Click here to download your email';
+  // Force the download by making it invisible and clicking it
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  
+  // Try to trigger download
+  try {
+    link.click();
+  } catch (error) {
+    // Fallback: show a visible download link
+    link.style.display = 'block';
     link.style.color = '#0078d4';
     link.style.textDecoration = 'underline';
-    link.style.display = 'block';
     link.style.marginTop = '10px';
+    link.textContent = 'Click here to download your email file';
     
     const statusDiv = document.getElementById("status");
     if (statusDiv) {
       statusDiv.appendChild(document.createElement('br'));
       statusDiv.appendChild(link);
     }
-    
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 300000);
   }
+  
+  // Clean up after download
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 5000);
 }
 
 /* Download the currently selected email as .eml */
@@ -238,20 +241,25 @@ async function downloadEmailAsEml() {
 
     const emlBlob = await downloadEmailWithRetry(accessToken, itemId, statusDiv);
 
-    // Clean subject for filename
+    // Clean subject for filename and ensure .eml extension
     const subject = Office.context.mailbox.item.subject || "email";
-    const filename = subject.replace(/[/\\?%*:|"<>]/g, '-') + ".eml";
+    let filename = subject.replace(/[/\\?%*:|"<>]/g, '-');
+    
+    // Ensure the filename ends with .eml
+    if (!filename.toLowerCase().endsWith('.eml')) {
+      filename += '.eml';
+    }
 
     if (statusDiv) {
       statusDiv.textContent = "💾 SED Email Downloader - Starting download...";
     }
 
-    // Use the new download method
+    // Use the improved download method
     triggerDownload(emlBlob, filename);
 
     if (statusDiv) {
       statusDiv.className = "success";
-      statusDiv.textContent = "✅ SED Email Downloader - Download completed!";
+      statusDiv.textContent = `✅ SED Email Downloader - Download completed! File: ${filename}`;
     }
     
     // Reset button
