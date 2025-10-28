@@ -7,7 +7,7 @@
   xsi:type="MailApp">
 
 <Id>33dbb95e-f5a1-4d29-b9d9-b07e9cb7d8df</Id>
-<Version>1.0.2.0</Version>
+<Version>1.0.3.0</Version>
 <ProviderName>SED</ProviderName>
 <DefaultLocale>en-US</DefaultLocale>
 <DisplayName DefaultValue="SED Email Downloader"/>
