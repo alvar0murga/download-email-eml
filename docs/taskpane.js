@@ -133,8 +133,53 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
     await delay(500);
   }
   
-  // If all encoding methods failed, show detailed error
-  const detailedError = `All encoding methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}\n\nThis might be a very recent email that hasn't fully synced yet. Try waiting a few minutes or selecting an older email.`;
+  // Special handling for very recent emails - try to find by subject
+  try {
+    statusDiv.textContent = "⬇️ Trying recent email fallback method...";
+    
+    // Get the subject from the Outlook context
+    const currentSubject = Office.context.mailbox.item.subject;
+    const currentFrom = Office.context.mailbox.item.from?.emailAddress?.address;
+    
+    if (currentSubject && currentFrom) {
+      // Search for the email by subject and sender in recent messages
+      const searchQuery = `subject:"${currentSubject}" AND from:${currentFrom}`;
+      const encodedQuery = encodeURIComponent(searchQuery);
+      
+      const searchResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages?$search="${encodedQuery}"&$top=5&$select=id,subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept": "application/json"
+        }
+      });
+      
+      if (searchResponse.ok) {
+        const searchResults = await searchResponse.json();
+        
+        if (searchResults.value && searchResults.value.length > 0) {
+          // Find the most recent match
+          const matchedEmail = searchResults.value[0];
+          statusDiv.textContent = `✅ Found recent email via search!`;
+          
+          const emlContent = createEmlFromJson(matchedEmail);
+          const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+          return emlBlob;
+        } else {
+          errorDetails.push("Recent email fallback: No matching emails found in search");
+        }
+      } else {
+        const errorText = await searchResponse.text();
+        errorDetails.push(`Recent email fallback failed: ${searchResponse.status} - ${errorText}`);
+      }
+    } else {
+      errorDetails.push("Recent email fallback: Missing subject or sender information");
+    }
+  } catch (error) {
+    errorDetails.push(`Recent email fallback error: ${error.message}`);
+  }
+  
+  // If all methods failed, show detailed error with helpful message
+  const detailedError = `All methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}\n\n🕐 This appears to be a very recent email (received within the last few hours).\n📧 Recent emails sometimes take time to fully sync with Microsoft Graph API.\n\n💡 Solutions:\n- Wait 30-60 minutes and try again\n- Try refreshing the email in Outlook\n- The email should work normally once it's fully synced`;
   throw new Error(detailedError);
 }
 
