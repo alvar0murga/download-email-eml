@@ -87,11 +87,10 @@ function safeEncodeItemId(itemId) {
     throw new Error("Item ID is null or undefined");
   }
   
-  // Remove the overly strict validation that's causing issues
-  // Some valid Outlook item IDs can be short or contain only base64 characters
+  // Remove ALL validation - just encode the itemId as-is
+  // Outlook item IDs can be long and contain base64-style characters
   
   try {
-    // Just encode the itemId as-is
     return encodeURIComponent(itemId);
   } catch (error) {
     throw new Error(`Failed to encode item ID: ${error.message}`);
@@ -102,13 +101,13 @@ function safeEncodeItemId(itemId) {
 async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
   let errorDetails = [];
   
-  // Validate and encode the item ID
+  // Encode the item ID without validation
   let graphItemId;
   try {
-    graphItemId = safeEncodeItemId(itemId);
-    statusDiv.textContent = `⬇️ Processing item ID: ${itemId.substring(0, 20)}...`;
+    graphItemId = encodeURIComponent(itemId);
+    statusDiv.textContent = `⬇️ Processing item ID: ${itemId.substring(0, 30)}...`;
   } catch (error) {
-    throw new Error(`Invalid item ID: ${error.message}. Try refreshing the email or selecting a different one.`);
+    throw new Error(`Failed to encode item ID: ${error.message}`);
   }
   
   // Method 1: Try direct MIME download
@@ -199,7 +198,7 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
   }
 
   // Show detailed error information
-  const detailedError = `All methods failed:\n${errorDetails.join('\n')}`;
+  const detailedError = `All methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}`;
   throw new Error(detailedError);
 }
 
