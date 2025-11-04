@@ -7,12 +7,12 @@
   xsi:type="MailApp">
 
 <Id>33dbb95e-f5a1-4d29-b9d9-b07e9cb7d8df</Id>
-<Version>1.0.3.0</Version>
+<Version>1.0.4.0</Version>
 <ProviderName>SED</ProviderName>
 <DefaultLocale>en-US</DefaultLocale>
 <DisplayName DefaultValue="SED Email Downloader"/>
 <Description DefaultValue="Download emails as .eml files directly from Outlook"/>
-<IconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon-128.png"/>
+<IconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon-64.png"/>
 <HighResolutionIconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon-128.png"/>
 <SupportUrl DefaultValue="https://github.com/alvar0murga/download-email-eml"/>
 <AppDomains>
@@ -22,7 +22,6 @@
 <Hosts>
   <Host Name="Mailbox"/>
 </Hosts>
-
 <Requirements>
   <Sets>
     <Set Name="Mailbox" MinVersion="1.1"/>
