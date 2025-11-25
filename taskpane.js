@@ -234,15 +234,8 @@ async function downloadEmailAsEml() {
   
   isDownloading = true;
   const statusDiv = document.getElementById("status");
-  const downloadBtn = document.getElementById("downloadBtn");
   
   try {
-    // Disable button and show progress
-    if (downloadBtn) {
-      downloadBtn.disabled = true;
-      downloadBtn.textContent = "⏳ Downloading...";
-    }
-    
     // Show downloading status
     if (statusDiv) {
       statusDiv.className = "downloading";
@@ -273,18 +266,11 @@ async function downloadEmailAsEml() {
       statusDiv.textContent = "💾 SED Email Downloader - Starting download...";
     }
 
-    // Use the new download method
     triggerDownload(emlBlob, filename);
 
     if (statusDiv) {
       statusDiv.className = "success";
-      statusDiv.textContent = "✅ SED Email Downloader - Download completed!";
-    }
-    
-    // Reset button
-    if (downloadBtn) {
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = "📧 Download Another Email";
+      statusDiv.textContent = `✅ SED Email Downloader - Download completed! File: ${filename}`;
     }
 
   } catch (error) {
@@ -295,28 +281,14 @@ async function downloadEmailAsEml() {
       statusDiv.style.textAlign = "left";
       statusDiv.textContent = `❌ SED Email Downloader - Error Details:\n${error.message}`;
     }
-    
-    // Re-enable button for retry
-    if (downloadBtn) {
-      downloadBtn.disabled = false;
-      downloadBtn.textContent = "📧 Try Download Again";
-    }
   }
   
   isDownloading = false;
 }
 
 /* Initialize Office add-in */
-document.addEventListener('DOMContentLoaded', function() {
-  const downloadBtn = document.getElementById("downloadBtn");
-  if (downloadBtn) {
-    downloadBtn.onclick = downloadEmailAsEml;
-  }
-});
-
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
-    // Hide the sideload message, show the app
     const sideloadMsg = document.getElementById("sideload-msg");
     const appBody = document.getElementById("app-body");
     
@@ -328,9 +300,9 @@ Office.onReady((info) => {
       appBody.style.display = "block";
     }
     
-    // AUTO-START THE DOWNLOAD after a short delay
+    // AUTO-START THE DOWNLOAD
     setTimeout(() => {
       downloadEmailAsEml();
-    }, 1000); // Reduced from 2000ms to 1000ms for faster response
+    }, 1000);
   }
 });
