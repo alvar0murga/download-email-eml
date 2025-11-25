@@ -12,8 +12,8 @@
 <DefaultLocale>en-US</DefaultLocale>
 <DisplayName DefaultValue="SED Email Downloader"/>
 <Description DefaultValue="Download emails directly from Outlook"/>
-<IconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-64-v2.png"/>
-<HighResolutionIconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-128-v2.png"/>
+<IconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/assets/sed-icon-64-v2.png"/>
+<HighResolutionIconUrl DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/assets/sed-icon-128-v2.png"/>
 <SupportUrl DefaultValue="https://github.com/alvar0murga/download-email-eml"/>
 <AppDomains>
   <AppDomain>https://alvar0murga.github.io</AppDomain>
@@ -22,8 +22,10 @@
 <Hosts>
   <Host Name="Mailbox"/>
 </Hosts>
+
 <Requirements>
   <Sets>
+    <Set Name="Mailbox" MinVersion="1.1"/>
   </Sets>
 </Requirements>
 
@@ -68,13 +70,12 @@
                   <Description resid="TaskpaneButton.Tooltip"/>
                 </Supertip>
                 <Icon>
-                  <bt:Image size="16" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-16-v2.png"/>
-                  <bt:Image size="32" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-32-v2.png"/>
-                  <bt:Image size="80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-80-v2.png"/>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
                 </Icon>
                 <Action xsi:type="ShowTaskpane">
-                  <TaskpaneId>ButtonId1</TaskpaneId>
-                  <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
+                  <SourceLocation resid="Taskpane.Url"/>
                 </Action>
               </Control>
             </Group>
@@ -86,9 +87,9 @@
 
   <Resources>
     <bt:Images>
-      <bt:Image id="Icon.16x16" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-16-v2.png"/>
-      <bt:Image id="Icon.32x32" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-32-v2.png"/>
-      <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-80-v2.png"/>
+      <bt:Image id="Icon.16x16" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/assets/sed-icon-16-v2.png"/>
+      <bt:Image id="Icon.32x32" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/assets/sed-icon-32-v2.png"/>
+      <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/assets/sed-icon-80-v2.png"/>
     </bt:Images>
     <bt:Urls>
       <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
