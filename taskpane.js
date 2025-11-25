@@ -209,34 +209,21 @@ function createEmlFromJson(message) {
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   
-  // Instead of using click(), use window.open which is less likely to trigger search
-  const newWindow = window.open(url, '_blank');
-  if (newWindow) {
-    setTimeout(() => {
-      newWindow.close();
-      URL.revokeObjectURL(url);
-    }, 1000);
-  } else {
-    // Fallback: create a link that user can click manually
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.textContent = 'Click here to download your email';
-    link.style.color = '#0078d4';
-    link.style.textDecoration = 'underline';
-    link.style.display = 'block';
-    link.style.marginTop = '10px';
-    
-    const statusDiv = document.getElementById("status");
-    if (statusDiv) {
-      statusDiv.appendChild(document.createElement('br'));
-      statusDiv.appendChild(link);
-    }
-    
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 300000);
-  }
+  // Create a temporary link element for download
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  
+  // Add to document, click, and remove
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Clean up the URL after a short delay
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 /* Download the currently selected email as .eml */
@@ -340,16 +327,10 @@ Office.onReady((info) => {
     if (appBody) {
       appBody.style.display = "block";
     }
-
-    // Set up button handler
-    const downloadBtn = document.getElementById("downloadBtn");
-    if (downloadBtn) {
-      downloadBtn.onclick = downloadEmailAsEml;
-    }
     
     // AUTO-START THE DOWNLOAD after a short delay
     setTimeout(() => {
       downloadEmailAsEml();
-    }, 2000);
+    }, 1000); // Reduced from 2000ms to 1000ms for faster response
   }
 });
