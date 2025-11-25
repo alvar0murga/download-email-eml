@@ -32,7 +32,7 @@
 <FormSettings>
   <Form xsi:type="ItemRead">
     <DesktopSettings>
-      <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
+      <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
       <RequestedHeight>450</RequestedHeight>
     </DesktopSettings>
   </Form>
@@ -92,7 +92,7 @@
       <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-80-v2.png"/>
     </bt:Images>
     <bt:Urls>
-      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
+      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
     </bt:Urls>
     <bt:ShortStrings>
       <bt:String id="GroupLabel" DefaultValue="SED Email Downloader"/>
