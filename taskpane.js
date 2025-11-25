@@ -83,98 +83,150 @@ function delay(ms) {
 
 /* Try multiple approaches to download email with detailed error reporting */
 async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
-  const graphItemId = encodeURIComponent(itemId);
   let errorDetails = [];
   
-  // Method 1: Try direct MIME download
-  try {
-    statusDiv.textContent = "⬇️ Method 1: Direct MIME download...";
-    
-    const response = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "message/rfc822"
-      }
-    });
-
-    if (response.ok) {
-      const emlBlob = await response.blob();
-      return emlBlob;
-    } else {
-      const errorText = await response.text();
-      errorDetails.push(`Method 1 failed: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-  } catch (error) {
-    errorDetails.push(`Method 1 error: ${error.message}`);
+  // Simple validation
+  if (!itemId) {
+    throw new Error("Item ID is null or undefined");
   }
-
-  await delay(1000);
-
-  // Method 2: Try getting message details first, then MIME
-  try {
-    statusDiv.textContent = "⬇️ Method 2: Metadata + MIME...";
+  
+  statusDiv.textContent = `⬇️ Processing item ID: ${itemId.substring(0, 30)}...`;
+  
+  // Try different encoding approaches for the item ID
+  const encodingMethods = [
+    { name: "Direct (no encoding)", value: itemId },
+    { name: "URI Component", value: encodeURIComponent(itemId) },
+    { name: "URI", value: encodeURI(itemId) },
+    { name: "Base64 safe", value: btoa(itemId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') }
+  ];
+  
+  for (let i = 0; i < encodingMethods.length; i++) {
+    const method = encodingMethods[i];
+    const graphItemId = method.value;
     
-    const metadataResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json"
-      }
-    });
-
-    if (metadataResponse.ok) {
-      const metadata = await metadataResponse.json();
+    try {
+      statusDiv.textContent = `⬇️ Trying ${method.name} encoding...`;
       
-      const mimeResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${metadata.id}/$value`, {
+      // Try Method 3 first (JSON to EML) as it's most likely to work
+      const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
-          "Accept": "message/rfc822"
+          "Accept": "application/json"
         }
       });
 
-      if (mimeResponse.ok) {
-        const emlBlob = await mimeResponse.blob();
+      if (fullResponse.ok) {
+        const message = await fullResponse.json();
+        statusDiv.textContent = `✅ Success with ${method.name} encoding!`;
+        
+        const emlContent = createEmlFromJson(message);
+        const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
         return emlBlob;
       } else {
-        const errorText = await mimeResponse.text();
-        errorDetails.push(`Method 2 MIME failed: ${mimeResponse.status} ${mimeResponse.statusText} - ${errorText}`);
+        const errorText = await fullResponse.text();
+        errorDetails.push(`${method.name} failed: ${fullResponse.status} ${fullResponse.statusText} - ${errorText}`);
       }
-    } else {
-      const errorText = await metadataResponse.text();
-      errorDetails.push(`Method 2 metadata failed: ${metadataResponse.status} ${metadataResponse.statusText} - ${errorText}`);
+    } catch (error) {
+      errorDetails.push(`${method.name} error: ${error.message}`);
     }
-  } catch (error) {
-    errorDetails.push(`Method 2 error: ${error.message}`);
-  }
-
-  await delay(1000);
-
-  // Method 3: Create EML from JSON data
-  try {
-    statusDiv.textContent = "⬇️ Method 3: JSON to EML conversion...";
     
-    const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json"
-      }
-    });
-
-    if (fullResponse.ok) {
-      const message = await fullResponse.json();
+    await delay(500);
+  }
+  
+  // Enhanced fallback for very recent emails
+  try {
+    statusDiv.textContent = "⬇️ Trying recent email fallback method...";
+    
+    // Get the current email info from Outlook context
+    const currentSubject = Office.context.mailbox.item.subject;
+    const currentFrom = Office.context.mailbox.item.from?.emailAddress?.address;
+    const currentDate = Office.context.mailbox.item.dateTimeCreated || Office.context.mailbox.item.dateTimeModified;
+    
+    if (currentSubject) {
+      // Try simpler approaches for recent emails
       
-      const emlContent = createEmlFromJson(message);
-      const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
-      return emlBlob;
+      // Method 1: Get recent messages and match by subject
+      try {
+        statusDiv.textContent = "⬇️ Searching recent messages by subject...";
+        
+        const recentResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages?$top=20&$orderby=receivedDateTime desc&$select=id,subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Accept": "application/json"
+          }
+        });
+        
+        if (recentResponse.ok) {
+          const recentMessages = await recentResponse.json();
+          
+          // Find email with matching subject (and optionally sender)
+          const matchedEmail = recentMessages.value.find(msg => {
+            const subjectMatch = msg.subject === currentSubject;
+            const senderMatch = !currentFrom || msg.sender?.emailAddress?.address === currentFrom;
+            return subjectMatch && senderMatch;
+          });
+          
+          if (matchedEmail) {
+            statusDiv.textContent = `✅ Found recent email via subject match!`;
+            
+            const emlContent = createEmlFromJson(matchedEmail);
+            const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+            return emlBlob;
+          } else {
+            errorDetails.push("Recent email fallback: No matching subject found in recent messages");
+          }
+        } else {
+          const errorText = await recentResponse.text();
+          errorDetails.push(`Recent email fallback failed: ${recentResponse.status} - ${errorText}`);
+        }
+      } catch (error) {
+        errorDetails.push(`Recent email search error: ${error.message}`);
+      }
+      
+      // Method 2: Try using inbox folder approach
+      try {
+        statusDiv.textContent = "⬇️ Trying inbox folder approach...";
+        
+        const inboxResponse = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=10&$orderby=receivedDateTime desc&$select=id,subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Accept": "application/json"
+          }
+        });
+        
+        if (inboxResponse.ok) {
+          const inboxMessages = await inboxResponse.json();
+          
+          const matchedEmail = inboxMessages.value.find(msg => {
+            return msg.subject === currentSubject && 
+                   (!currentFrom || msg.sender?.emailAddress?.address === currentFrom);
+          });
+          
+          if (matchedEmail) {
+            statusDiv.textContent = `✅ Found recent email via inbox search!`;
+            
+            const emlContent = createEmlFromJson(matchedEmail);
+            const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+            return emlBlob;
+          } else {
+            errorDetails.push("Inbox fallback: No matching email found in inbox");
+          }
+        } else {
+          const errorText = await inboxResponse.text();
+          errorDetails.push(`Inbox fallback failed: ${inboxResponse.status} - ${errorText}`);
+        }
+      } catch (error) {
+        errorDetails.push(`Inbox search error: ${error.message}`);
+      }
     } else {
-      const errorText = await fullResponse.text();
-      errorDetails.push(`Method 3 failed: ${fullResponse.status} ${fullResponse.statusText} - ${errorText}`);
+      errorDetails.push("Recent email fallback: No subject available");
     }
   } catch (error) {
-    errorDetails.push(`Method 3 error: ${error.message}`);
+    errorDetails.push(`Overall fallback error: ${error.message}`);
   }
-
-  // Show detailed error information
-  const detailedError = `All methods failed:\n${errorDetails.join('\n')}`;
+  
+  // If all methods failed, show detailed error with helpful message
+  const detailedError = `All methods failed for item ID: ${itemId.substring(0, 50)}...\n${errorDetails.join('\n')}\n\n🕐 This appears to be a very recent email (received within the last few hours).\n📧 Recent emails sometimes take time to fully sync with Microsoft Graph API.\n\n💡 Solutions:\n- Wait 30-60 minutes and try again\n- Try refreshing the email in Outlook\n- The email should work normally once it's fully synced\n\n📝 Current email info:\n- Subject: ${Office.context.mailbox.item.subject}\n- From: ${Office.context.mailbox.item.from?.emailAddress?.address || 'Unknown'}`;
   throw new Error(detailedError);
 }
 
@@ -207,23 +259,39 @@ function createEmlFromJson(message) {
 
 /* Download using a different method to avoid search bar issue */
 function triggerDownload(blob, filename) {
+  // Create download link with proper MIME type
   const url = URL.createObjectURL(blob);
-  
-  // Create a temporary link element for download
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  
+  // Force the download by making it invisible and clicking it
   link.style.display = 'none';
-  
-  // Add to document, click, and remove
   document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
   
-  // Clean up the URL after a short delay
+  // Try to trigger download
+  try {
+    link.click();
+  } catch (error) {
+    // Fallback: show a visible download link
+    link.style.display = 'block';
+    link.style.color = '#0078d4';
+    link.style.textDecoration = 'underline';
+    link.style.marginTop = '10px';
+    link.textContent = 'Click here to download your email file';
+    
+    const statusDiv = document.getElementById("status");
+    if (statusDiv) {
+      statusDiv.appendChild(document.createElement('br'));
+      statusDiv.appendChild(link);
+    }
+  }
+  
+  // Clean up after download
   setTimeout(() => {
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, 1000);
+  }, 5000);
 }
 
 /* Download the currently selected email as .eml */
@@ -234,8 +302,15 @@ async function downloadEmailAsEml() {
   
   isDownloading = true;
   const statusDiv = document.getElementById("status");
+  const downloadBtn = document.getElementById("downloadBtn");
   
   try {
+    // Disable button and show progress
+    if (downloadBtn) {
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = "⏳ Downloading...";
+    }
+    
     // Show downloading status
     if (statusDiv) {
       statusDiv.className = "downloading";
@@ -258,19 +333,31 @@ async function downloadEmailAsEml() {
 
     const emlBlob = await downloadEmailWithRetry(accessToken, itemId, statusDiv);
 
-    // Clean subject for filename
+    // Clean subject for filename and ensure .eml extension
     const subject = Office.context.mailbox.item.subject || "email";
-    const filename = subject.replace(/[/\\?%*:|"<>]/g, '-') + ".eml";
+    let filename = subject.replace(/[/\\?%*:|"<>]/g, '-');
+    
+    // Ensure the filename ends with .eml
+    if (!filename.toLowerCase().endsWith('.eml')) {
+      filename += '.eml';
+    }
 
     if (statusDiv) {
       statusDiv.textContent = "💾 SED Email Downloader - Starting download...";
     }
 
+    // Use the improved download method
     triggerDownload(emlBlob, filename);
 
     if (statusDiv) {
       statusDiv.className = "success";
       statusDiv.textContent = `✅ SED Email Downloader - Download completed! File: ${filename}`;
+    }
+    
+    // Reset button
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = "📧 Download Another Email";
     }
 
   } catch (error) {
@@ -281,14 +368,28 @@ async function downloadEmailAsEml() {
       statusDiv.style.textAlign = "left";
       statusDiv.textContent = `❌ SED Email Downloader - Error Details:\n${error.message}`;
     }
+    
+    // Re-enable button for retry
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = "📧 Try Download Again";
+    }
   }
   
   isDownloading = false;
 }
 
 /* Initialize Office add-in */
+document.addEventListener('DOMContentLoaded', function() {
+  const downloadBtn = document.getElementById("downloadBtn");
+  if (downloadBtn) {
+    downloadBtn.onclick = downloadEmailAsEml;
+  }
+});
+
 Office.onReady((info) => {
   if (info.host === Office.HostType.Outlook) {
+    // Hide the sideload message, show the app
     const sideloadMsg = document.getElementById("sideload-msg");
     const appBody = document.getElementById("app-body");
     
@@ -299,10 +400,16 @@ Office.onReady((info) => {
     if (appBody) {
       appBody.style.display = "block";
     }
+
+    // Set up button handler
+    const downloadBtn = document.getElementById("downloadBtn");
+    if (downloadBtn) {
+      downloadBtn.onclick = downloadEmailAsEml;
+    }
     
-    // AUTO-START THE DOWNLOAD
+    // AUTO-START THE DOWNLOAD after a short delay
     setTimeout(() => {
       downloadEmailAsEml();
-    }, 1000);
+    }, 2000);
   }
 });

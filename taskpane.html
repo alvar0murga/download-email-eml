@@ -23,6 +23,7 @@
       width: 64px;
       height: 64px;
       margin-bottom: 10px;
+      border-radius: 50%; /* Hace circular el logo SED */
     }
     
     h1 {
@@ -30,23 +31,6 @@
       font-size: 20px;
       margin: 0;
       font-weight: 600;
-    }
-    
-    #downloadBtn {
-      background-color: #0078d4;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      font-size: 14px;
-      border-radius: 2px;
-      cursor: pointer;
-      width: 100%;
-      margin-bottom: 15px;
-      font-weight: 600;
-    }
-    
-    #downloadBtn:hover {
-      background-color: #106ebe;
     }
     
     #status {
@@ -57,6 +41,7 @@
       background-color: #fff;
       border: 1px solid #d1d1d1;
       font-weight: 500;
+      margin-bottom: 15px;
     }
     
     .downloading {
@@ -76,6 +61,12 @@
       border-color: #d13438;
       color: #d13438;
     }
+
+    .waiting {
+      background-color: #fff4ce;
+      border-color: #ffb900;
+      color: #8a6914;
+    }
   </style>
 </head>
 
@@ -83,11 +74,10 @@
   <div id="sideload-msg">Please sideload your add-in to see app body.</div>
   <div id="app-body" style="display:none;">
     <div class="header">
-      <img src="assets/icon-64.png" alt="SED Email Downloader" class="logo">
+      <img src="../assets/sed-icon-64.png" alt="SED Email Downloader" class="logo">
       <h1>SED Email Downloader</h1>
     </div>
-    <button id="downloadBtn">📧 Download Email as .eml</button>
-    <div id="status"></div>
+    <div id="status" class="waiting">Ready to download email...</div>
   </div>
 
   <script src="taskpane.js"></script>

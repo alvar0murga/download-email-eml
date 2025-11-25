@@ -31,7 +31,7 @@
 <FormSettings>
   <Form xsi:type="ItemRead">
     <DesktopSettings>
-      <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
+      <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
       <RequestedHeight>450</RequestedHeight>
     </DesktopSettings>
   </Form>
@@ -75,7 +75,7 @@
                 </Icon>
                 <Action xsi:type="ShowTaskpane">
                   <TaskpaneId>ButtonIdDev</TaskpaneId>
-                  <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
+                  <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
                 </Action>
               </Control>
             </Group>
@@ -92,7 +92,7 @@
       <bt:Image id="Icon.80x80" DefaultValue="https://raw.githubusercontent.com/OfficeDev/Office-Add-in-samples/main/Samples/outlook-add-in-attachments-demo/assets/icon-80.png"/>
     </bt:Images>
     <bt:Urls>
-      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
+      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
     </bt:Urls>
     <bt:ShortStrings>
       <bt:String id="GroupLabel" DefaultValue="SED Email Downloader (DEV)"/>
