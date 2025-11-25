@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+    <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
+</head>
+<body>
+    <script>
+        /* Azure AD MSAL config */
+        const msalConfig = {
+          auth: {
+            clientId: "10f65a22-c90e-44bc-9c3f-dbb90c8d6a92",
+            redirectUri: "https://alvar0murga.github.io/download-email-eml/"
+          },
+          cache: {
+            cacheLocation: "sessionStorage",
+            storeAuthStateInCookie: false,
+          }
+        };
+
+        let msalInstance = null;
+
+        async function initializeMsal() {
+          if (msalInstance) {
+            return msalInstance;
+          }
+          
+          try {
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+            await msalInstance.initialize();
+            console.log("MSAL Initialized successfully");
+            return msalInstance;
+          } catch (error) {
+            console.error("Error initializing MSAL:", error);
+            msalInstance = null;
+            throw error;
+          }
+        }
+
+        async function signIn() {
+          if (!msalInstance) {
+            throw new Error("MSAL not initialized");
+          }
+          
+          const loginRequest = {
+            scopes: ["https://graph.microsoft.com/Mail.Read"]
+          };
+
+          try {
+            const loginResponse = await msalInstance.loginPopup(loginRequest);
+            return loginResponse.account;
+          } catch (error) {
+            console.error("Login error:", error);
+            throw error;
+          }
+        }
+
+        async function getToken() {
+          if (!msalInstance) {
+            await initializeMsal();
+          }
+          
+          let account = msalInstance.getAllAccounts()[0];
+          if (!account) {
+            account = await signIn();
+          }
+
+          const tokenRequest = {
+            scopes: ["https://graph.microsoft.com/Mail.Read"],
+            account: account
+          };
+
+          try {
+            const response = await msalInstance.acquireTokenSilent(tokenRequest);
+            return response.accessToken;
+          } catch (error) {
+            if (error instanceof msal.InteractionRequiredAuthError) {
+              const response = await msalInstance.acquireTokenPopup(tokenRequest);
+              return response.accessToken;
+            } else {
+              console.error("Token acquisition error:", error);
+              throw error;
+            }
+          }
+        }
+
+        // Function called by the button - opens taskpane for download
+        async function downloadEmail(event) {
+          try {
+            // Show progress notification
+            Office.context.mailbox.item.notificationMessages.replaceAsync("download", {
+              type: "informationalMessage",
+              message: "SED Email Downloader: Opening download window...",
+              icon: "Icon.16x16",
+              persistent: false
+            });
+
+            // Open the taskpane for download
+            Office.context.ui.displayDialogAsync(
+              "https://alvar0murga.github.io/download-email-eml/download.html",
+              {
+                height: 50,
+                width: 50,
+                displayInIframe: false
+              },
+              function(result) {
+                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                  const dialog = result.value;
+                  
+                  // Listen for messages from the dialog
+                  dialog.addEventHandler(Office.EventType.DialogMessageReceived, function(arg) {
+                    const message = JSON.parse(arg.message);
+                    
+                    if (message.type === "success") {
+                      Office.context.mailbox.item.notificationMessages.replaceAsync("download", {
+                        type: "informationalMessage",
+                        message: "SED Email Downloader: Download completed!",
+                        icon: "Icon.16x16",
+                        persistent: false
+                      });
+                    } else if (message.type === "error") {
+                      Office.context.mailbox.item.notificationMessages.replaceAsync("download", {
+                        type: "errorMessage",
+                        message: `SED Email Downloader: ${message.error}`,
+                        icon: "Icon.16x16",
+                        persistent: true
+                      });
+                    }
+                    
+                    dialog.close();
+                    
+                    // Clear notification after 3 seconds
+                    setTimeout(() => {
+                      Office.context.mailbox.item.notificationMessages.removeAsync("download");
+                    }, 3000);
+                  });
+                  
+                  // Auto-close dialog after 10 seconds if no response
+                  setTimeout(() => {
+                    dialog.close();
+                  }, 10000);
+                } else {
+                  Office.context.mailbox.item.notificationMessages.replaceAsync("download", {
+                    type: "errorMessage",
+                    message: "SED Email Downloader: Failed to open download window",
+                    icon: "Icon.16x16",
+                    persistent: true
+                  });
+                }
+              }
+            );
+
+          } catch (error) {
+            console.error("Download error:", error);
+            
+            // Error notification
+            Office.context.mailbox.item.notificationMessages.replaceAsync("download", {
+              type: "errorMessage",
+              message: `SED Email Downloader: Error - ${error.message}`,
+              icon: "Icon.16x16",
+              persistent: true
+            });
+          }
+
+          // Complete the function
+          event.completed();
+        }
+
+        // Initialize Office
+        Office.onReady(() => {
+          console.log("SED Email Downloader Commands ready");
+        });
+    </script>
+</body>
+</html>
