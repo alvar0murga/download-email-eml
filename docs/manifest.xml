@@ -92,7 +92,7 @@
 </bt:Images>
 
     <bt:Urls>
-      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
+      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/docs/taskpane.html"/>
     </bt:Urls>
 
     <bt:ShortStrings>
