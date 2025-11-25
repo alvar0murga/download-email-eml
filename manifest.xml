@@ -87,9 +87,9 @@
 
   <Resources>
     <bt:Images>
-      <bt:Image id="Icon.16x16" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-16-v2.png"/>
-      <bt:Image id="Icon.32x32" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-32-v2.png"/>
-      <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/sed-icon-80-v2.png"/>
+      <bt:Image id="Icon.16x16" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon-16.png"/>
+      <bt:Image id="Icon.32x32" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon-32.png"/>
+      <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon-80.png"/>
     </bt:Images>
 
     <bt:Urls>
