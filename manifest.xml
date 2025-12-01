@@ -6,8 +6,8 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
 
-<Id>33dbb95e-f5a1-4d29-b9d9-b07e9cb7d8df</Id>
-<Version>1.0.2.0</Version>
+<Id>7f8e9d1a-2b3c-4d5e-6f7g-8h9i0j1k2l3m</Id>
+<Version>1.0.3.0</Version>
 <ProviderName>SED</ProviderName>
 <DefaultLocale>en-US</DefaultLocale>
 <DisplayName DefaultValue="SED Email Downloader"/>
@@ -87,9 +87,9 @@
 
   <Resources>
     <bt:Images>
-      <bt:Image id="Icon.16x16" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon16.png?v=3"/>
-      <bt:Image id="Icon.32x32" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon32.png?v=3"/>
-      <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon80.png?v=3"/>
+      <bt:Image id="Icon.16x16" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon16.png?v=4"/>
+      <bt:Image id="Icon.32x32" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon32.png?v=4"/>
+      <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon80.png?v=4"/>
     </bt:Images>
     <bt:Urls>
       <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
