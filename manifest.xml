@@ -6,7 +6,7 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
 
-<Id>7f8e9d1a-2b3c-4d5e-af7b-8h9i0j1k2l3m</Id>
+<Id>12345678-1234-1234-1234-123456789abc</Id>
 <Version>1.0.3.0</Version>
 <ProviderName>SED</ProviderName>
 <DefaultLocale>en-US</DefaultLocale>
