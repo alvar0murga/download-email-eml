@@ -11,61 +11,28 @@
     body {
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       margin: 20px;
-      background-color: #f3f2f1;
+      background-color: #f8f9fa;
     }
     
-    .header {
+    .container {
       text-align: center;
-      margin-bottom: 20px;
     }
     
-    .logo {
-      width: 64px;
-      height: 64px;
-      margin-bottom: 10px;
-      /* Removed border-radius to eliminate circular shape */
-    }
-    
-    h1 {
+    .title {
       color: #323130;
-      font-size: 20px;
-      margin: 0;
+      font-size: 24px;
       font-weight: 600;
+      margin-bottom: 30px;
     }
     
     #status {
       padding: 15px;
-      border-radius: 4px;
-      font-size: 14px;
-      text-align: center;
-      background-color: #fff;
-      border: 1px solid #d1d1d1;
+      border-radius: 8px;
+      font-size: 16px;
       font-weight: 500;
-      margin-bottom: 15px;
-    }
-    
-    .downloading {
-      background-color: #e6f3ff;
-      border-color: #0078d4;
-      color: #0078d4;
-    }
-    
-    .success {
-      background-color: #e6ffed;
-      border-color: #107c10;
-      color: #107c10;
-    }
-    
-    .error {
-      background-color: #fde7e9;
-      border-color: #d13438;
-      color: #d13438;
-    }
-
-    .waiting {
-      background-color: #fff4ce;
-      border-color: #ffb900;
-      color: #8a6914;
+      background-color: #e7f3ff;
+      border: 1px solid #c3e3fd;
+      color: #004578;
     }
   </style>
 </head>
@@ -73,13 +40,11 @@
 <body>
   <div id="sideload-msg">Please sideload your add-in to see app body.</div>
   <div id="app-body" style="display:none;">
-    <div class="header">
-      <img src="assets/sed-icon-16-v2.png" alt="SED Email Downloader" class="logo">
-      <h1>SED Email Downloader</h1>
+    <div class="container">
+      <div class="title">SED Email Downloader</div>
+      <div id="status">Ready to download email...</div>
     </div>
-    <div id="status" class="waiting">Ready to download email...</div>
   </div>
-
   <script src="taskpane.js"></script>
 </body>
 
