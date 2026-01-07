@@ -7,7 +7,7 @@
   xsi:type="MailApp">
 
 <Id>98765432-abcd-1234-5678-9abcdef01234</Id>
-<Version>2.0.0.0</Version>
+<Version>2.0.1.0</Version>
 <ProviderName>SED</ProviderName>
 <DefaultLocale>en-US</DefaultLocale>
 <DisplayName DefaultValue="SED Email Downloader"/>
@@ -32,7 +32,7 @@
 <FormSettings>
   <Form xsi:type="ItemRead">
     <DesktopSettings>
-      <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
+      <SourceLocation DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html?v=7"/>
       <RequestedHeight>250</RequestedHeight>
     </DesktopSettings>
   </Form>
@@ -92,7 +92,7 @@
       <bt:Image id="Icon.80x80" DefaultValue="https://alvar0murga.github.io/download-email-eml/assets/icon80.png?v=6"/>
     </bt:Images>
     <bt:Urls>
-      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html"/>
+      <bt:Url id="Taskpane.Url" DefaultValue="https://alvar0murga.github.io/download-email-eml/taskpane.html?v=7"/>
     </bt:Urls>
     <bt:ShortStrings>
       <bt:String id="GroupLabel" DefaultValue="SED Email Tools"/>
