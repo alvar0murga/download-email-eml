@@ -107,7 +107,20 @@ async function downloadEmailWithRetry(accessToken, itemId, statusDiv) {
     try {
       statusDiv.textContent = `⬇️ Trying ${method.name} encoding...`;
       
-      // Try Method 3 first (JSON to EML) as it's most likely to work
+      // Request the original MIME message so attachments are preserved.
+      const mimeResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}/$value`, {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept": "message/rfc822"
+        }
+      });
+
+      if (mimeResponse.ok) {
+        statusDiv.textContent = `✅ Downloaded original MIME with ${method.name} encoding!`;
+        return await mimeResponse.blob();
+      }
+
+      // Fall back to JSON reconstruction when raw MIME is unavailable.
       const fullResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${graphItemId}?$select=subject,body,sender,toRecipients,ccRecipients,bccRecipients,receivedDateTime,internetMessageHeaders`, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
